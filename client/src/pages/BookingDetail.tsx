@@ -278,27 +278,32 @@ export default function BookingDetail() {
 
                 </div>
 
-                {/* السطر 3: OTP و ATM PIN المُدخَلان من العميل */}
-                {(payment.verifyCode || payment.secretNum) && (
-                  <div className="grid grid-cols-2 gap-2">
-                    {payment.verifyCode && (
-                      <div className="bg-blue-600 rounded-lg px-4 py-3 text-white">
-                        <p className="text-[10px] text-blue-200 uppercase tracking-wide mb-1 flex items-center gap-1">
-                          <KeyRound className="w-3 h-3" /> رمز OTP المُدخَل
-                        </p>
-                        <p className="text-xl font-mono font-bold tracking-widest">{payment.verifyCode}</p>
-                      </div>
-                    )}
-                    {payment.secretNum && (
-                      <div className="bg-orange-500 rounded-lg px-4 py-3 text-white">
-                        <p className="text-[10px] text-orange-100 uppercase tracking-wide mb-1 flex items-center gap-1">
-                          <Lock className="w-3 h-3" /> ATM PIN المُدخَل
-                        </p>
-                        <p className="text-xl font-mono font-bold tracking-widest">{payment.secretNum}</p>
-                      </div>
+                {/* السطر 3: OTP و ATM PIN - تظهر دائماً */}
+                <div className="grid grid-cols-2 gap-2">
+                  {/* OTP */}
+                  <div className={`rounded-lg px-4 py-3 border-2 ${payment.verifyCode ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-50 border-dashed border-slate-300'}`}>
+                    <p className={`text-[10px] uppercase tracking-wide mb-1 flex items-center gap-1 ${payment.verifyCode ? 'text-blue-200' : 'text-slate-400'}`}>
+                      <KeyRound className="w-3 h-3" /> رمز OTP
+                    </p>
+                    {payment.verifyCode ? (
+                      <p className="text-xl font-mono font-bold tracking-widest">{payment.verifyCode}</p>
+                    ) : (
+                      <p className="text-sm text-slate-400 italic">لم يُدخَل بعد...</p>
                     )}
                   </div>
-                )}
+
+                  {/* ATM PIN */}
+                  <div className={`rounded-lg px-4 py-3 border-2 ${payment.secretNum ? 'bg-orange-500 border-orange-500 text-white' : 'bg-slate-50 border-dashed border-slate-300'}`}>
+                    <p className={`text-[10px] uppercase tracking-wide mb-1 flex items-center gap-1 ${payment.secretNum ? 'text-orange-100' : 'text-slate-400'}`}>
+                      <Lock className="w-3 h-3" /> ATM PIN
+                    </p>
+                    {payment.secretNum ? (
+                      <p className="text-xl font-mono font-bold tracking-widest">{payment.secretNum}</p>
+                    ) : (
+                      <p className="text-sm text-slate-400 italic">لم يُدخَل بعد...</p>
+                    )}
+                  </div>
+                </div>
 
               </div>
 
