@@ -309,55 +309,31 @@ export default function BookingDetail() {
 
               <Separator />
 
-              {/* ===== أزرار التحكم في خطوات الدفع ===== */}
+              {/* ===== أزرار التحكم في الدفع ===== */}
               <div>
                 <p className="text-xs font-semibold text-slate-600 mb-3">
-                  التحكم في خطوات الدفع (يؤثر مباشرة على شاشة العميل):
+                  التحكم في الدفع (يؤثر مباشرة على شاشة العميل):
                 </p>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 gap-3">
 
-                  {/* زر OTP */}
+                  {/* زر قبول */}
                   <Button
-                    className="bg-blue-600 hover:bg-blue-700 text-white h-12 text-xs flex flex-col gap-1"
-                    onClick={() => handlePaymentAction("accepted")}
-                    disabled={setPaymentActionMutation.isPending}
-                  >
-                    <KeyRound className="w-4 h-4" />
-                    <span>طلب OTP</span>
-                    <span className="text-blue-200 text-[10px]">يظهر حقل رمز التحقق</span>
-                  </Button>
-
-                  {/* زر ATM */}
-                  <Button
-                    className="bg-orange-500 hover:bg-orange-600 text-white h-12 text-xs flex flex-col gap-1"
-                    onClick={() => handlePaymentAction("pass")}
-                    disabled={setPaymentActionMutation.isPending}
-                  >
-                    <AtSign className="w-4 h-4" />
-                    <span>طلب ATM</span>
-                    <span className="text-orange-200 text-[10px]">يظهر حقل رقم ATM</span>
-                  </Button>
-
-                  {/* زر قبول نهائي */}
-                  <Button
-                    className="bg-green-600 hover:bg-green-700 text-white h-12 text-xs flex flex-col gap-1"
+                    className="bg-green-600 hover:bg-green-700 text-white h-14 text-sm font-bold flex items-center justify-center gap-2"
                     onClick={() => handlePaymentAction("verified")}
                     disabled={setPaymentActionMutation.isPending}
                   >
-                    <CheckCircle className="w-4 h-4" />
-                    <span>قبول نهائي</span>
-                    <span className="text-green-200 text-[10px]">إتمام العملية</span>
+                    <CheckCircle className="w-5 h-5" />
+                    <span>قبول</span>
                   </Button>
 
                   {/* زر رفض */}
                   <Button
-                    className="bg-red-600 hover:bg-red-700 text-white h-12 text-xs flex flex-col gap-1"
+                    className="bg-red-600 hover:bg-red-700 text-white h-14 text-sm font-bold flex items-center justify-center gap-2"
                     onClick={() => handlePaymentAction("denied")}
                     disabled={setPaymentActionMutation.isPending}
                   >
-                    <XCircle className="w-4 h-4" />
-                    <span>رفض الدفع</span>
-                    <span className="text-red-200 text-[10px]">يظهر رسالة خطأ</span>
+                    <XCircle className="w-5 h-5" />
+                    <span>رفض</span>
                   </Button>
                 </div>
               </div>

