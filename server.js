@@ -226,6 +226,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/dist', express.static(path.join(__dirname, 'public', 'dist')));
 app.use('/site', express.static(path.join(__dirname, 'public', 'site')));
 app.use('/admin', express.static(path.join(__dirname, 'public', 'admin')));
+// توجيه /assets/ إلى ملفات dist/assets (مشتركة بين جميع الصفحات)
+app.use('/assets', express.static(path.join(__dirname, 'public', 'dist', 'assets')));
 
 // فتح الصفحة الرئيسية من داخل مجلد public/dist
 app.get('/', (req, res) => {
