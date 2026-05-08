@@ -223,15 +223,29 @@ app.use(express.urlencoded({ extended: true }));
 
 // --- توجيه الملفات الثابتة لمجلد public (لإظهار الموقع) ---
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/dist', express.static(path.join(__dirname, 'public', 'dist')));
+app.use('/site', express.static(path.join(__dirname, 'public', 'site')));
+app.use('/admin', express.static(path.join(__dirname, 'public', 'admin')));
 
-// فتح الصفحة الرئيسية من داخل مجلد public
+// فتح الصفحة الرئيسية من داخل مجلد public/dist
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    res.sendFile(path.join(__dirname, 'public', 'dist', 'index.html'));
+});
+
+// فتح صفحة الموقع
+app.get('/site', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'site', 'index.html'));
+});
+app.get('/site/*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'site', 'index.html'));
 });
 
 // فتح صفحة الأدمن
 app.get('/admin', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+    res.sendFile(path.join(__dirname, 'public', 'admin', 'index.html'));
+});
+app.get('/admin/*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'admin', 'index.html'));
 });
 
 // ==================== تشغيل السيرفر ====================
