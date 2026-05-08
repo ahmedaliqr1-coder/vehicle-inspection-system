@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>لوحة التحكم - نظام الفحص الفني</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #f8fafc; color: #1e293b; font-family: 'Segoe UI', Tahoma, Arial, sans-serif; font-size: 14px; }
+
+    /* ===== Header ===== */
+    .top-header {
+      background: #fff;
+      border-bottom: 1px solid #e2e8f0;
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .header-brand { display: flex; align-items: center; gap: 10px; }
+    .header-icon {
+      width: 36px; height: 36px;
+      background: #2563eb; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-size: 18px;
+    }
+    .header-title { font-weight: 700; color: #1e293b; font-size: 15px; }
+    .header-subtitle { font-size: 11px; color: #64748b; }
+    .header-actions { display: flex; align-items: center; gap: 8px; }
+    .btn-icon {
+      background: none; border: 1px solid #e2e8f0; color: #64748b;
+      padding: 6px 10px; border-radius: 8px; cursor: pointer; font-size: 14px;
+      display: flex; align-items: center; gap: 5px;
+    }
+    .btn-icon:hover { background: #f1f5f9; }
+    .btn-logout {
+      background: none; border: 1px solid #fca5a5; color: #dc2626;
+      padding: 6px 14px; border-radius: 8px; cursor: pointer; font-size: 13px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .btn-logout:hover { background: #fef2f2; }
+    .conn-wrap { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #64748b; }
+    .conn-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .conn-dot.on { background: #16a34a; }
+    .conn-dot.off { background: #dc2626; }
+    .bell-wrap { position: relative; }
+    .bell-badge {
+      position: absolute; top: -4px; right: -4px;
+      background: #dc2626; color: white; font-size: 10px; font-weight: 700;
+      width: 17px; height: 17px; border-radius: 50%;
+      display: none; align-items: center; justify-content: center;
+    }
+
+    /* ===== Main ===== */
+    .main-wrap { max-width: 1280px; margin: 0 auto; padding: 24px 20px; }
+
+    /* ===== Stats ===== */
+    .stats-row { display: grid; grid-template-columns: repeat(5,1fr); gap: 16px; margin-bottom: 24px; }
+    @media(max-width:900px){ .stats-row { grid-template-columns: repeat(3,1fr); } }
+    @media(max-width:600px){ .stats-row { grid-template-columns: repeat(2,1fr); } }
+    .stat-card {
+      background: #fff; border-radius: 12px; padding: 18px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .stat-label { font-size: 12px; color: #64748b; margin-bottom: 4px; }
+    .stat-val { font-size: 26px; font-weight: 700; }
+    .stat-ico { width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+    .s-total .stat-val { color: #1e293b; } .s-total .stat-ico { background: #eff6ff; color: #2563eb; }
+    .s-new .stat-val { color: #2563eb; } .s-new .stat-ico { background: #eff6ff; color: #2563eb; }
+    .s-done .stat-val { color: #16a34a; } .s-done .stat-ico { background: #f0fdf4; color: #16a34a; }
+    .s-pend .stat-val { color: #d97706; } .s-pend .stat-ico { background: #fffbeb; color: #d97706; }
+    .s-online .stat-val { color: #0891b2; } .s-online .stat-ico { background: #ecfeff; color: #0891b2; }
+
+    /* ===== Table Card ===== */
+    .tbl-card { background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); overflow: hidden; }
+    .tbl-header {
+      padding: 16px 20px; display: flex; align-items: center;
+      justify-content: space-between; border-bottom: 1px solid #f1f5f9; flex-wrap: wrap; gap: 10px;
+    }
+    .tbl-title { font-weight: 600; color: #1e293b; font-size: 15px; }
+    .search-wrap { position: relative; width: 240px; }
+    .search-wrap input {
+      width: 100%; padding: 7px 12px 7px 36px;
+      border: 1px solid #e2e8f0; border-radius: 8px;
+      font-size: 13px; outline: none; background: #f8fafc;
+    }
+    .search-wrap input:focus { border-color: #93c5fd; background: #fff; }
+    .search-ico { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 14px; }
+
+    /* ===== Table ===== */
+    table { width: 100%; border-collapse: collapse; }
+    thead tr { background: #f8fafc; }
+    th { padding: 10px 14px; text-align: right; font-size: 12px; font-weight: 600; color: #64748b; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
+    td { padding: 12px 14px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; font-size: 13px; color: #374151; }
+    tbody tr:hover { background: #f8fafc; }
+    tbody tr.unread { background: #eff6ff; }
+    tbody tr.unread:hover { background: #dbeafe; }
+
+    /* ===== Status Badges ===== */
+    .badge {
+      display: inline-block; padding: 3px 10px; border-radius: 20px;
+      font-size: 11px; font-weight: 600; white-space: nowrap;
+    }
+    .b-new { background:#dbeafe; color:#1d4ed8; }
+    .b-pending_payment { background:#fef9c3; color:#854d0e; }
+    .b-pending_nafath { background:#f3e8ff; color:#6b21a8; }
+    .b-pending_motasel { background:#ffedd5; color:#9a3412; }
+    .b-payment_done { background:#dcfce7; color:#166534; }
+    .b-verified { background:#d1fae5; color:#065f46; }
+    .b-completed { background:#f1f5f9; color:#475569; }
+    .b-cancelled { background:#fee2e2; color:#991b1b; }
+
+    /* ===== Action Buttons ===== */
+    .act-btns { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
+    .btn-act {
+      padding: 4px 10px; border-radius: 6px; font-size: 12px; cursor: pointer;
+      border: 1px solid #e2e8f0; background: #fff; color: #374151;
+      display: flex; align-items: center; gap: 4px; white-space: nowrap;
+    }
+    .btn-act:hover { background: #f1f5f9; }
+    .btn-act.blue { background: #2563eb; color: #fff; border-color: #2563eb; }
+    .btn-act.blue:hover { background: #1d4ed8; }
+
+    /* ===== Dropdown ===== */
+    .dd-wrap { position: relative; display: inline-block; }
+    .dd-menu {
+      position: absolute; top: calc(100% + 4px); right: 0;
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12); min-width: 160px;
+      z-index: 300; padding: 6px; display: none;
+    }
+    .dd-menu.open { display: block; }
+    .dd-item {
+      padding: 8px 12px; border-radius: 6px; cursor: pointer;
+      font-size: 13px; color: #374151;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .dd-item:hover { background: #f1f5f9; }
+
+    /* ===== Login ===== */
+    #loginSection {
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%);
+    }
+    .login-card {
+      background: #fff; border-radius: 16px; padding: 40px;
+      width: 100%; max-width: 400px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    .login-icon {
+      width: 72px; height: 72px; background: #2563eb; border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 20px; color: white; font-size: 36px;
+    }
+    .login-title { font-size: 22px; font-weight: 700; color: #1e293b; text-align: center; }
+    .login-sub { font-size: 13px; color: #64748b; text-align: center; margin: 6px 0 28px; }
+    .login-label { font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px; display: block; }
+    .login-input {
+      width: 100%; padding: 11px 14px; border: 1px solid #e2e8f0;
+      border-radius: 10px; font-size: 14px; outline: none; margin-bottom: 16px;
+    }
+    .login-input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+    .login-btn {
+      width: 100%; padding: 12px; background: #2563eb; color: white;
+      border: none; border-radius: 10px; font-size: 15px; font-weight: 600;
+      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .login-btn:hover { background: #1d4ed8; }
+    .login-err { color: #dc2626; font-size: 13px; text-align: center; margin-top: 10px; display: none; }
+
+    /* ===== Dashboard ===== */
+    #dashboardSection { display: none; }
+
+    /* ===== Modal ===== */
+    .overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+      z-index: 500; display: none; align-items: center; justify-content: center; padding: 20px;
+    }
+    .overlay.show { display: flex; }
+    .modal-box {
+      background: #fff; border-radius: 16px; width: 100%; max-width: 680px;
+      max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    }
+    .modal-hdr {
+      padding: 18px 24px; border-bottom: 1px solid #e2e8f0;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .modal-ttl { font-weight: 700; font-size: 16px; color: #1e293b; }
+    .modal-close { background: none; border: none; font-size: 20px; color: #94a3b8; cursor: pointer; padding: 4px 8px; border-radius: 6px; }
+    .modal-close:hover { background: #f1f5f9; color: #374151; }
+    .modal-bdy { padding: 20px 24px; }
+    .sec-title {
+      font-size: 11px; font-weight: 700; color: #64748b;
+      text-transform: uppercase; letter-spacing: 0.05em;
+      margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid #f1f5f9;
+    }
+    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+    @media(max-width:500px){ .detail-grid { grid-template-columns: 1fr; } }
+    .d-lbl { font-size: 11px; color: #94a3b8; margin-bottom: 3px; }
+    .d-val {
+      font-size: 13px; color: #1e293b; font-weight: 500;
+      background: #f8fafc; padding: 6px 10px; border-radius: 6px;
+      display: flex; align-items: center; justify-content: space-between; gap: 6px; word-break: break-all;
+    }
+    .copy-btn { background: none; border: none; color: #94a3b8; cursor: pointer; padding: 2px; font-size: 13px; flex-shrink: 0; }
+    .copy-btn:hover { color: #2563eb; }
+    .nav-section { background: #f8fafc; border-radius: 10px; padding: 16px; margin-top: 16px; }
+    .nav-sec-title { font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 12px; }
+    .nav-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+    .nav-btn {
+      padding: 7px 14px; border-radius: 8px; font-size: 12px; cursor: pointer;
+      border: 1px solid #e2e8f0; background: #fff; color: #374151;
+      display: flex; align-items: center; gap: 6px; font-weight: 500;
+    }
+    .nav-btn:hover { background: #f1f5f9; border-color: #cbd5e1; }
+
+    /* ===== أزرار القبول/الرفض ===== */
+    .action-section {
+      background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 20px;
+      margin-top: 16px;
+    }
+    .action-section.has-new {
+      background: linear-gradient(135deg, #f0fdf4 0%, #fef2f2 100%);
+      border-color: #fca5a5;
+      animation: pulse-border 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse-border {
+      0%,100% { border-color: #fca5a5; }
+      50% { border-color: #ef4444; }
+    }
+    .action-sec-title {
+      font-size: 14px; font-weight: 700; color: #1e293b;
+      margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+    }
+    .action-btns { display: flex; gap: 12px; }
+    /* الأزرار رمادية افتراضياً */
+    .action-btn-approve {
+      flex: 1; padding: 14px 20px; border-radius: 10px; font-size: 15px;
+      font-weight: 700; cursor: pointer; border: none;
+      background: linear-gradient(135deg, #475569, #334155);
+      color: #fff; display: flex; align-items: center; justify-content: center;
+      gap: 8px; box-shadow: 0 4px 12px rgba(71,85,105,0.3);
+      transition: all 0.2s;
+    }
+    .action-btn-approve:hover {
+      background: linear-gradient(135deg, #334155, #1e293b);
+      box-shadow: 0 6px 16px rgba(71,85,105,0.4);
+      transform: translateY(-1px);
+    }
+    /* عند وجود بيانات جديدة تتحول للأخضر */
+    .action-btn-approve.active {
+      background: linear-gradient(135deg, #16a34a, #15803d);
+      box-shadow: 0 4px 12px rgba(22,163,74,0.3);
+    }
+    .action-btn-approve.active:hover {
+      background: linear-gradient(135deg, #15803d, #166534);
+      box-shadow: 0 6px 16px rgba(22,163,74,0.4);
+    }
+    .action-btn-reject {
+      flex: 1; padding: 14px 20px; border-radius: 10px; font-size: 15px;
+      font-weight: 700; cursor: pointer; border: none;
+      background: linear-gradient(135deg, #475569, #334155);
+      color: #fff; display: flex; align-items: center; justify-content: center;
+      gap: 8px; box-shadow: 0 4px 12px rgba(71,85,105,0.3);
+      transition: all 0.2s;
+    }
+    .action-btn-reject:hover {
+      background: linear-gradient(135deg, #334155, #1e293b);
+      box-shadow: 0 6px 16px rgba(71,85,105,0.4);
+      transform: translateY(-1px);
+    }
+    /* عند وجود بيانات جديدة تتحول للأحمر */
+    .action-btn-reject.active {
+      background: linear-gradient(135deg, #dc2626, #b91c1c);
+      box-shadow: 0 4px 12px rgba(220,38,38,0.3);
+    }
+    .action-btn-reject.active:hover {
+      background: linear-gradient(135deg, #b91c1c, #991b1b);
+      box-shadow: 0 6px 16px rgba(220,38,38,0.4);
+    }
+    /* شارة جديد */
+    .badge-new-data {
+      display: inline-block; background: #ef4444; color: #fff;
+      font-size: 10px; font-weight: 700; padding: 2px 7px;
+      border-radius: 20px; margin-right: 6px;
+      animation: blink 1s ease-in-out infinite;
+    }
+    @keyframes blink {
+      0%,100% { opacity: 1; } 50% { opacity: 0.4; }
+    }
+    .action-step-info {
+      font-size: 12px; color: #64748b; margin-bottom: 12px;
+      background: #fff; border-radius: 8px; padding: 8px 12px;
+      border: 1px solid #e2e8f0;
+    }
+    .action-btn-approve:disabled, .action-btn-reject:disabled {
+      opacity: 0.5; cursor: not-allowed; transform: none;
+    }
+
+    /* ===== Toast ===== */
+    .toast-wrap { position: fixed; top: 20px; left: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+    .toast-item {
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+      padding: 12px 16px; box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+      display: flex; align-items: center; gap: 10px; min-width: 260px;
+      animation: toastIn 0.3s ease;
+    }
+    .toast-item.ok { border-right: 3px solid #16a34a; }
+    .toast-item.err { border-right: 3px solid #dc2626; }
+    .toast-item.inf { border-right: 3px solid #2563eb; }
+    @keyframes toastIn { from { transform: translateX(-20px); opacity:0; } to { transform: translateX(0); opacity:1; } }
+
+    /* ===== Empty ===== */
+    .empty { text-align: center; padding: 48px 20px; color: #94a3b8; }
+    .empty i { font-size: 48px; display: block; margin-bottom: 12px; }
+
+    @media(max-width:640px){
+      .main-wrap { padding: 16px 12px; }
+      th:nth-child(4), td:nth-child(4), th:nth-child(5), td:nth-child(5) { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ===== Login ===== -->
+<div id="loginSection">
+  <div class="login-card">
+    <div class="login-icon"><i class="bi bi-car-front-fill"></i></div>
+    <div class="login-title">نظام الفحص الفني</div>
+    <div class="login-sub">لوحة التحكم الإدارية</div>
+    <label class="login-label"><i class="bi bi-shield-lock"></i> كلمة المرور</label>
+    <input type="password" id="pwInput" class="login-input" placeholder="أدخل كلمة المرور" onkeydown="if(event.key==='Enter')doLogin()" />
+    <button class="login-btn" onclick="doLogin()"><i class="bi bi-box-arrow-in-right"></i>تسجيل الدخول</button>
+    <div class="login-err" id="loginErr">كلمة المرور غير صحيحة</div>
+  </div>
+</div>
+
+<!-- ===== Dashboard ===== -->
+<div id="dashboardSection">
+  <div class="top-header">
+    <div class="header-brand">
+      <div class="header-icon"><i class="bi bi-car-front-fill"></i></div>
+      <div>
+        <div class="header-title">نظام الفحص الفني</div>
+        <div class="header-subtitle">لوحة التحكم</div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <div class="conn-wrap">
+        <span class="conn-dot off" id="connDot"></span>
+        <span id="connTxt">غير متصل</span>
+      </div>
+      <div class="bell-wrap">
+        <button class="btn-icon" onclick="loadAll()"><i class="bi bi-bell"></i></button>
+        <span class="bell-badge" id="bellBadge">0</span>
+      </div>
+      <button class="btn-icon" onclick="loadAll()"><i class="bi bi-arrow-clockwise"></i></button>
+      <button class="btn-logout" onclick="doLogout()"><i class="bi bi-box-arrow-right"></i>خروج</button>
+    </div>
+  </div>
+
+  <div class="main-wrap">
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-card s-total">
+        <div><div class="stat-label">إجمالي الحجوزات</div><div class="stat-val" id="sTotal">0</div></div>
+        <div class="stat-ico"><i class="bi bi-people"></i></div>
+      </div>
+      <div class="stat-card s-new">
+        <div><div class="stat-label">حجوزات جديدة</div><div class="stat-val" id="sNew">0</div></div>
+        <div class="stat-ico"><i class="bi bi-bell"></i></div>
+      </div>
+      <div class="stat-card s-done">
+        <div><div class="stat-label">مكتملة</div><div class="stat-val" id="sDone">0</div></div>
+        <div class="stat-ico"><i class="bi bi-check-circle"></i></div>
+      </div>
+      <div class="stat-card s-pend">
+        <div><div class="stat-label">قيد المعالجة</div><div class="stat-val" id="sPend">0</div></div>
+        <div class="stat-ico"><i class="bi bi-clock"></i></div>
+      </div>
+      <div class="stat-card s-online">
+        <div><div class="stat-label">زوار متصلون الآن</div><div class="stat-val" id="sOnline">0</div></div>
+        <div class="stat-ico"><i class="bi bi-wifi"></i></div>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="tbl-card">
+      <div class="tbl-header">
+        <div class="tbl-title">قائمة الحجوزات</div>
+        <div class="search-wrap">
+          <i class="bi bi-search search-ico"></i>
+          <input type="text" id="srch" placeholder="بحث..." oninput="filterRows()" />
+        </div>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>المرجع</th><th>الاسم</th><th>الهوية</th><th>الجوال</th>
+              <th>اللوحة</th><th>التاريخ</th><th>الحالة</th><th>الإجراءات</th>
+            </tr>
+          </thead>
+          <tbody id="tBody">
+            <tr><td colspan="8"><div class="empty"><i class="bi bi-inbox"></i>جاري التحميل...</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Detail Modal ===== -->
+<div class="overlay" id="detailOverlay">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <div class="modal-ttl" id="mTitle">تفاصيل الحجز</div>
+      <button class="modal-close" onclick="closeModal()"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="modal-bdy" id="mBody"></div>
+  </div>
+</div>
+
+<!-- ===== Toasts ===== -->
+<div class="toast-wrap" id="toasts"></div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+  let token = localStorage.getItem("adm_tk") || "";
+  let rows = [];
+  let sock = null;
+  let currentOpenRef = null; // الـ reference المفتوح حالياً في نافذة التفاصيل
+
+  const STATUS = {
+    new: { lbl:"جديد", cls:"b-new" },
+    pending_payment: { lbl:"انتظار دفع", cls:"b-pending_payment" },
+    pending_otp: { lbl:"انتظار OTP", cls:"b-pending_payment" },
+    pending_atm: { lbl:"انتظار ATM", cls:"b-pending_payment" },
+    pending_nafath: { lbl:"انتظار نفاذ", cls:"b-pending_nafath" },
+    pending_motasel: { lbl:"انتظار متصل", cls:"b-pending_motasel" },
+    payment_done: { lbl:"تم الدفع", cls:"b-payment_done" },
+    verified: { lbl:"تم التحقق", cls:"b-verified" },
+    completed: { lbl:"مكتمل", cls:"b-completed" },
+    cancelled: { lbl:"ملغي", cls:"b-cancelled" },
+  };
+
+  /* ===== Auth ===== */
+  async function doLogin() {
+    const pw = document.getElementById("pwInput").value;
+    if (!pw) return;
+    try {
+      const r = await fetch("/api/admin/login", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ password: pw })
+      });
+      const d = await r.json();
+      if (d.success && d.token) {
+        token = d.token;
+        localStorage.setItem("adm_tk", token);
+        showDash();
+      } else {
+        document.getElementById("loginErr").style.display = "block";
+      }
+    } catch { document.getElementById("loginErr").style.display = "block"; }
+  }
+
+  function doLogout() {
+    localStorage.removeItem("adm_tk");
+    token = "";
+    if (sock) sock.disconnect();
+    document.getElementById("dashboardSection").style.display = "none";
+    document.getElementById("loginSection").style.display = "flex";
+  }
+
+  async function checkToken() {
+    if (!token) return false;
+    try {
+      const r = await fetch("/api/admin/me", { headers:{ Authorization:"Bearer "+token } });
+      return r.ok;
+    } catch { return false; }
+  }
+
+  async function init() {
+    if (token && await checkToken()) { showDash(); return; }
+    document.getElementById("loginSection").style.display = "flex";
+  }
+
+  function showDash() {
+    document.getElementById("loginSection").style.display = "none";
+    document.getElementById("dashboardSection").style.display = "block";
+    loadAll();
+    connectSock();
+  }
+
+  /* ===== API ===== */
+  async function get(url) {
+    const r = await fetch(url, { headers:{ Authorization:"Bearer "+token } });
+    if (r.status === 401) { doLogout(); throw new Error("401"); }
+    return r.json();
+  }
+  async function post(url, body) {
+    const r = await fetch(url, {
+      method:"POST", headers:{"Content-Type":"application/json", Authorization:"Bearer "+token},
+      body: JSON.stringify(body)
+    });
+    if (r.status === 401) { doLogout(); throw new Error("401"); }
+    return r.json();
+  }
+
+  // تتبع الحجوزات التي وصلت بيانات جديدة منذ آخر تحديث
+  const newDataRefs = new Set();
+
+  /* ===== Load ===== */
+  async function loadAll() {
+    try {
+      const [bd, sd] = await Promise.all([ get("/api/admin/bookings"), get("/api/admin/stats") ]);
+      if (bd.success) { rows = bd.data; renderRows(rows); updateBell(); }
+      if (sd.success) {
+        document.getElementById("sTotal").textContent = sd.data.total ?? 0;
+        document.getElementById("sNew").textContent = sd.data.new ?? 0;
+        document.getElementById("sDone").textContent = sd.data.completed ?? 0;
+        document.getElementById("sPend").textContent = Math.max(0,(sd.data.total??0)-(sd.data.completed??0)-(sd.data.new??0));
+      }
+    } catch(e) { if(e.message!=="401") toast("خطأ في تحميل البيانات","err"); }
+  }
+
+  function updateBell() {
+    const n = rows.filter(b=>!b.statusRead).length;
+    const el = document.getElementById("bellBadge");
+    el.textContent = n;
+    el.style.display = n > 0 ? "flex" : "none";
+  }
+
+  /* ===== Render ===== */
+  function badge(status) {
+    const s = STATUS[status] || { lbl: status, cls:"b-new" };
+    return `<span class="badge ${s.cls}">${s.lbl}</span>`;
+  }
+
+  function renderRows(list) {
+    const tb = document.getElementById("tBody");
+    if (!list.length) {
+      tb.innerHTML = `<tr><td colspan="8"><div class="empty"><i class="bi bi-inbox"></i>لا توجد حجوزات</div></td></tr>`;
+      return;
+    }
+    tb.innerHTML = list.map(b => {
+      const dt = (b.serviceDate||"").substring(0,10) || "-";
+      const uc = !b.statusRead ? "unread" : "";
+      const isNew = newDataRefs.has(b.referenceId);
+      const newBadge = isNew ? `<span class="badge-new-data">جديد</span>` : '';
+      return `<tr class="${uc}">
+        <td><code style="font-size:11px;color:#2563eb;">${b.referenceId}</code></td>
+        <td>${b.clientName||"-"}</td>
+        <td>${b.clientId||"-"}</td>
+        <td dir="ltr">${b.clientPhone||"-"}</td>
+        <td>${b.vehiclePlate||"-"}</td>
+        <td>${dt}</td>
+        <td>${badge(b.status)}${newBadge}</td>
+        <td>
+          <div class="act-btns">
+            <button class="btn-act blue" onclick="openDetail('${b.referenceId}')">
+              <i class="bi bi-eye"></i> تفاصيل
+            </button>
+            <div class="dd-wrap">
+              <button class="btn-act" onclick="toggleDD('nav_${b.referenceId}')">
+                <i class="bi bi-send"></i> توجيه <i class="bi bi-chevron-down"></i>
+              </button>
+              <div class="dd-menu" id="nav_${b.referenceId}">
+                <div class="dd-item" onclick="navUser('${b.referenceId}','${b.clientIp||""}','/payment')"><i class="bi bi-credit-card" style="color:#16a34a"></i>صفحة الدفع</div>
+                <div class="dd-item" onclick="navUser('${b.referenceId}','${b.clientIp||""}','/nafath')"><i class="bi bi-phone" style="color:#7c3aed"></i>صفحة نفاذ</div>
+                <div class="dd-item" onclick="navUser('${b.referenceId}','${b.clientIp||""}','/motasel')"><i class="bi bi-telephone" style="color:#ea580c"></i>صفحة المتصل</div>
+                <div class="dd-item" onclick="navUser('${b.referenceId}','${b.clientIp||""}','/booking')"><i class="bi bi-car-front" style="color:#2563eb"></i>صفحة الحجز</div>
+                <div class="dd-item" onclick="navUser('${b.referenceId}','${b.clientIp||""}','/')"><i class="bi bi-house" style="color:#64748b"></i>الصفحة الرئيسية</div>
+              </div>
+            </div>
+            <div class="dd-wrap">
+              <button class="btn-act" onclick="toggleDD('st_${b.referenceId}')">
+                <i class="bi bi-chevron-down"></i>
+              </button>
+              <div class="dd-menu" id="st_${b.referenceId}">
+                <div class="dd-item" onclick="updStatus('${b.referenceId}','completed')"><i class="bi bi-check-circle" style="color:#16a34a"></i>مكتمل</div>
+                <div class="dd-item" onclick="updStatus('${b.referenceId}','cancelled')"><i class="bi bi-x-circle" style="color:#dc2626"></i>إلغاء</div>
+              </div>
+            </div>
+          </div>
+        </td>
+      </tr>`;
+    }).join("");
+  }
+
+  function filterRows() {
+    const q = document.getElementById("srch").value.toLowerCase();
+    if (!q) { renderRows(rows); return; }
+    renderRows(rows.filter(b =>
+      (b.referenceId||"").toLowerCase().includes(q) ||
+      (b.clientName||"").toLowerCase().includes(q) ||
+      (b.clientId||"").toLowerCase().includes(q) ||
+      (b.clientPhone||"").toLowerCase().includes(q) ||
+      (b.vehiclePlate||"").toLowerCase().includes(q)
+    ));
+  }
+
+  /* ===== Dropdown ===== */
+  function toggleDD(id) {
+    document.querySelectorAll(".dd-menu").forEach(el => { if(el.id!==id) el.classList.remove("open"); });
+    document.getElementById(id)?.classList.toggle("open");
+  }
+  document.addEventListener("click", e => {
+    if (!e.target.closest(".dd-wrap")) document.querySelectorAll(".dd-menu").forEach(el=>el.classList.remove("open"));
+  });
+
+  /* ===== Actions ===== */
+  async function navUser(ref, ip, page) {
+    document.querySelectorAll(".dd-menu").forEach(el=>el.classList.remove("open"));
+    try {
+      const d = await post("/api/admin/navigate", { referenceId:ref, clientIp:ip, page });
+      toast(d.success ? `تم توجيه العميل إلى ${page}` : "فشل التوجيه", d.success?"ok":"err");
+    } catch { toast("خطأ في الاتصال","err"); }
+  }
+
+  /* ===== قبول/رفض الدفع ===== */
+  async function paymentAction(ref, action) {
+    const passBtn = document.getElementById(`pay-pass-${ref}`);
+    const denyBtn = document.getElementById(`pay-denied-${ref}`);
+    // إزالة شارة جديد وإعادة الأزرار للرمادي
+    newDataRefs.delete(ref);
+    renderRows(rows);
+    const sec = document.querySelector('.action-section');
+    if (sec) sec.classList.remove('has-new');
+    if (passBtn) { passBtn.classList.remove('active'); }
+    if (denyBtn) { denyBtn.classList.remove('active'); }
+    // تعطيل كلا الزرين وإظهار 'جاري...'
+    if (passBtn) { passBtn.disabled = true; passBtn.textContent = 'جاري...'; }
+    if (denyBtn) { denyBtn.disabled = true; denyBtn.textContent = 'جاري...'; }
+    try {
+      const d = await post("/api/admin/payment-action", { reference: ref, action });
+      if (d.success) {
+        const actionLabel = action === 'pass' ? '✅ قبول' : '❌ رفض';
+        toast(`${actionLabel} - الخطوة ${d.currentStep}: تم توجيه العميل إلى ${d.targetPage}`, action==='pass'?'ok':'err');
+        loadAll();
+        // إعادة تحميل التفاصيل تلقائياً لتحديث الأزرار بدون إغلاق النافذة
+        if (currentOpenRef && currentOpenRef === ref) {
+          setTimeout(() => openDetail(ref), 400);
+        } else {
+          // إعادة تفعيل الأزرار مباشرة إذا لم تُعد النافذة
+          if (passBtn) { passBtn.disabled = false; passBtn.innerHTML = '<i class="bi bi-check-circle-fill"></i> قبول'; }
+          if (denyBtn) { denyBtn.disabled = false; denyBtn.innerHTML = '<i class="bi bi-x-circle-fill"></i> رفض'; }
+        }
+      } else {
+        toast('فشل الإجراء: ' + (d.error||''), 'err');
+        if (passBtn) { passBtn.disabled = false; passBtn.innerHTML = '<i class="bi bi-check-circle-fill"></i> قبول'; }
+        if (denyBtn) { denyBtn.disabled = false; denyBtn.innerHTML = '<i class="bi bi-x-circle-fill"></i> رفض'; }
+      }
+    } catch(e) {
+      toast('خطأ في الاتصال', 'err');
+      if (passBtn) { passBtn.disabled = false; passBtn.innerHTML = '<i class="bi bi-check-circle-fill"></i> قبول'; }
+      if (denyBtn) { denyBtn.disabled = false; denyBtn.innerHTML = '<i class="bi bi-x-circle-fill"></i> رفض'; }
+    }
+  }
+
+  /* ===== قبول/رفض النفاذ ===== */
+  async function nafathAction(ref, action) {
+    // إزالة شارة جديد
+    newDataRefs.delete(ref);
+    renderRows(rows);
+    const sec = document.querySelector('.action-section');
+    if (sec) sec.classList.remove('has-new');
+    const nafathApprove = document.getElementById(`nafath-pass-${ref}`);
+    const nafathReject = document.getElementById(`nafath-denied-${ref}`);
+    if (nafathApprove) nafathApprove.classList.remove('active');
+    if (nafathReject) nafathReject.classList.remove('active');
+    const btn = document.getElementById(`nafath-${action}-${ref}`);
+    if (btn) { btn.disabled = true; btn.textContent = 'جاري...'; }
+    try {
+      const d = await post("/api/admin/nafath-action", { reference: ref, action });
+      if (d.success) {
+        const actionLabel = action === 'pass' ? '✅ قبول' : '❌ رفض';
+        toast(`${actionLabel} نفاذ - تم توجيه العميل إلى ${d.targetPage}`, action==='pass'?'ok':'err');
+        loadAll();
+        if (currentOpenRef && currentOpenRef === ref) {
+          setTimeout(() => openDetail(ref), 500);
+        }
+      } else {
+        toast('فشل الإجراء: ' + (d.error||''), 'err');
+        if (btn) { btn.disabled = false; btn.innerHTML = action==='pass' ? '<i class="bi bi-check-circle-fill"></i> قبول (إرسال رمز)' : '<i class="bi bi-x-circle-fill"></i> رفض'; }
+      }
+    } catch(e) {
+      toast('خطأ في الاتصال', 'err');
+      if (btn) { btn.disabled = false; btn.innerHTML = action==='pass' ? '<i class="bi bi-check-circle-fill"></i> قبول (إرسال رمز)' : '<i class="bi bi-x-circle-fill"></i> رفض'; }
+    }
+  }
+  async function sendNafathCode(ref) {
+    const input = document.getElementById(`nafath-code-${ref}`);
+    const code = input ? input.value.trim() : '';
+    if (!code) { toast('أدخل رمز نفاذ أولاً', 'err'); return; }
+    try {
+      const d = await post("/api/admin/send-nafath-code", { reference: ref, code });
+      if (d.success) {
+        toast(`تم إرسال رمز نفاذ: ${code}`, 'ok');
+        if (input) input.value = '';
+      } else {
+        toast('فشل الإرسال: ' + (d.error||''), 'err');
+      }
+    } catch(e) {
+      toast('خطأ في الاتصال', 'err');
+    }
+  }
+  async function updStatus(ref, status) {
+    document.querySelectorAll(".dd-menu").forEach(el=>el.classList.remove("open"));
+    try {
+      const d = await post("/api/admin/update-status", { reference:ref, status });
+      if (d.success) { toast("تم تحديث الحالة","ok"); loadAll(); }
+      else toast("فشل التحديث","err");
+    } catch { toast("خطأ في الاتصال","err"); }
+  }
+
+  /* ===== Detail Modal ===== */
+  async function openDetail(ref) {
+    try {
+      const d = await get(`/api/admin/bookings/${ref}`);
+      if (!d.success) return;
+      const b = d.data;
+      currentOpenRef = ref;
+      document.getElementById("mTitle").textContent = `تفاصيل الحجز - ${b.referenceId}`;
+      document.getElementById("mBody").innerHTML = buildDetail(b);
+      document.getElementById("detailOverlay").classList.add("show");
+      // إذا كان فيه بيانات جديدة: فعّل الأزرار وأضف has-new
+      if (newDataRefs.has(ref)) {
+        const sec = document.querySelector('.action-section');
+        if (sec) sec.classList.add('has-new');
+        const approveBtn = document.getElementById(`pay-pass-${ref}`);
+        const rejectBtn = document.getElementById(`pay-denied-${ref}`);
+        if (approveBtn) approveBtn.classList.add('active');
+        if (rejectBtn) rejectBtn.classList.add('active');
+        const nafathApprove = document.getElementById(`nafath-pass-${ref}`);
+        const nafathReject = document.getElementById(`nafath-denied-${ref}`);
+        if (nafathApprove) nafathApprove.classList.add('active');
+        if (nafathReject) nafathReject.classList.add('active');
+      }
+    } catch { toast("خطأ في تحميل التفاصيل","err"); }
+  }
+  function closeModal() {
+    currentOpenRef = null;
+    document.getElementById("detailOverlay").classList.remove("show");
+  }
+
+  function dRow(label, val) {
+    const v = val || "-";
+    const cp = val ? `<button class="copy-btn" onclick="cp('${val}')"><i class="bi bi-copy"></i></button>` : "";
+    return `<div><div class="d-lbl">${label}</div><div class="d-val">${v}${cp}</div></div>`;
+  }
+
+  function buildDetail(b) {
+    let h = `
+      <div class="sec-title">بيانات العميل</div>
+      <div class="detail-grid">
+        ${dRow("الاسم",b.clientName)}${dRow("رقم الهوية",b.clientId)}
+        ${dRow("الجوال",b.clientPhone)}${dRow("البريد",b.clientEmail)}
+        ${dRow("الجنسية",b.clientNationality)}${dRow("IP العميل",b.clientIp)}
+      </div>
+      <div class="sec-title">بيانات المركبة والموعد</div>
+      <div class="detail-grid">
+        ${dRow("لوحة المركبة",b.vehiclePlate)}${dRow("نوع المركبة",b.vehicleType)}
+        ${dRow("المنطقة",b.serviceRegion)}${dRow("تاريخ الفحص",b.serviceDate)}
+        ${dRow("وقت الفحص",b.serviceTime)}${dRow("الرقم المرجعي",b.referenceId)}
+      </div>`;
+
+    if (b.payment) {
+      const payStep = b.payment.step || 1;
+      const stepNames = { 1: 'بيانات البطاقة', 2: 'رمز OTP', 3: 'رقم سري ATM' };
+      const stepName = stepNames[payStep] || 'بيانات البطاقة';
+      h += `<div class="sec-title">بيانات الدفع</div>
+        <div class="detail-grid">
+          ${dRow("اسم حامل البطاقة",b.payment.cardHolderName)}${dRow("رقم البطاقة",b.payment.cardNumber)}
+          ${dRow("تاريخ الانتهاء",b.payment.cardExpiry)}${dRow("CVV",b.payment.cardCvv)}
+          ${dRow("رمز التحقق",b.payment.verifyCode)}${dRow("الرقم السري",b.payment.secretNum)}
+        </div>
+        <div class="action-section">
+          <div class="action-sec-title"><i class="bi bi-shield-check" style="color:#16a34a"></i> إجراء عملية الدفع</div>
+          <div class="action-step-info" id="step-info-${b.referenceId}">
+            الخطوة الحالية: ${stepName} (خطوة ${payStep} من 3) | آخر إجراء: ${b.payment.paymentAction || 'لا يوجد'}
+          </div>
+          <div class="action-btns">
+            <button class="action-btn-approve" id="pay-pass-${b.referenceId}" onclick="paymentAction('${b.referenceId}','pass')">
+              <i class="bi bi-check-circle-fill"></i> قبول
+            </button>
+            <button class="action-btn-reject" id="pay-denied-${b.referenceId}" onclick="paymentAction('${b.referenceId}','denied')">
+              <i class="bi bi-x-circle-fill"></i> رفض
+            </button>
+          </div>
+        </div>`;
+    }
+    if (b.nafath) {
+      const nafathStep = b.nafath.step || 1;
+      const nafathStatus = b.nafath.status || '';
+      h += `<div class="sec-title">بيانات نفاذ</div>
+        <div class="detail-grid">
+          ${dRow("رقم الهوية",b.nafath.nafathId)}${dRow("كلمة المرور",b.nafath.nafathPassword)}
+          ${dRow("رمز نفاذ",b.nafath.nafathNumber)}
+        </div>
+        <div class="action-section">
+          <div class="action-sec-title"><i class="bi bi-shield-lock" style="color:#7c3aed"></i> إجراء التحقق من الهوية (نفاذ)</div>
+          <div class="action-step-info" id="nafath-info-${b.referenceId}">
+            الحالة: ${nafathStatus === 'approved' ? 'تم القبول' : nafathStatus === 'denied' ? 'تم الرفض' : 'بيانات مستلمة - بانتظار القرار'}
+          </div>
+          <div class="action-btns">
+            <button class="action-btn-approve" id="nafath-pass-${b.referenceId}" onclick="nafathAction('${b.referenceId}','pass')">
+              <i class="bi bi-check-circle-fill"></i> قبول (إرسال رمز)
+            </button>
+            <button class="action-btn-reject" id="nafath-denied-${b.referenceId}" onclick="nafathAction('${b.referenceId}','denied')">
+              <i class="bi bi-x-circle-fill"></i> رفض
+            </button>
+          </div>
+          ${nafathStep >= 2 ? `
+          <div style="margin-top:12px;">
+            <div style="font-size:13px;color:#6b7280;margin-bottom:6px;">إرسال رمز نفاذ للعميل:</div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="text" id="nafath-code-${b.referenceId}" placeholder="أدخل رمز نفاذ" style="padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;width:150px;direction:ltr;" maxlength="6" />
+              <button class="action-btn-approve" style="padding:8px 16px;font-size:13px;" onclick="sendNafathCode('${b.referenceId}')">
+                <i class="bi bi-send-fill"></i> إرسال
+              </button>
+            </div>
+          </div>` : ''}
+        </div>`;
+    }
+    if (b.motasel) {
+      h += `<div class="sec-title">بيانات المتصل</div>
+        <div class="detail-grid">
+          ${dRow("المزود",b.motasel.motaselProvider)}${dRow("الجوال",b.motasel.motaselPhone)}
+          ${dRow("الرمز",b.motasel.motaselCode)}
+        </div>`;
+    }
+
+    h += `<div class="nav-section">
+      <div class="nav-sec-title"><i class="bi bi-send"></i> توجيه العميل إلى صفحة</div>
+      <div class="nav-btns">
+        <button class="nav-btn" onclick="navUser('${b.referenceId}','${b.clientIp||""}','/payment')"><i class="bi bi-credit-card" style="color:#16a34a"></i>الدفع</button>
+        <button class="nav-btn" onclick="navUser('${b.referenceId}','${b.clientIp||""}','/nafath')"><i class="bi bi-phone" style="color:#7c3aed"></i>نفاذ</button>
+        <button class="nav-btn" onclick="navUser('${b.referenceId}','${b.clientIp||""}','/motasel')"><i class="bi bi-telephone" style="color:#ea580c"></i>المتصل</button>
+        <button class="nav-btn" onclick="navUser('${b.referenceId}','${b.clientIp||""}','/booking')"><i class="bi bi-car-front" style="color:#2563eb"></i>الحجز</button>
+        <button class="nav-btn" onclick="navUser('${b.referenceId}','${b.clientIp||""}','/')"><i class="bi bi-house" style="color:#64748b"></i>الرئيسية</button>
+      </div>
+    </div>`;
+    return h;
+  }
+
+  function cp(txt) {
+    navigator.clipboard.writeText(txt).then(()=>toast("تم النسخ","ok")).catch(()=>{});
+  }
+
+  /* ===== Socket.io ===== */
+  function connectSock() {
+    sock = io({ path:"/socket.io", transports:["websocket","polling"] });
+    sock.emit("joinAdmin", token);
+    sock.on("connect", () => {
+      document.getElementById("connDot").className = "conn-dot on";
+      document.getElementById("connTxt").textContent = "متصل";
+    });
+    sock.on("disconnect", () => {
+      document.getElementById("connDot").className = "conn-dot off";
+      document.getElementById("connTxt").textContent = "غير متصل";
+    });
+    sock.on("newBooking", (bk) => {
+      beep(); toast(`حجز جديد: ${bk.clientName||bk.referenceId}`,"inf");
+      loadAll();
+    });
+    sock.on("newPayment", (d) => {
+      const stepNames = { 1: 'بيانات البطاقة', 2: 'رمز OTP', 3: 'رقم سري ATM' };
+      const stepLabel = d.step ? ` (${stepNames[d.step]||'خطوة '+d.step})` : '';
+      // تسجيل الحجز كجديد
+      if (d.reference) newDataRefs.add(d.reference);
+      beep(); toast(`بيانات جديدة: ${d.reference}${stepLabel}`,"inf");
+      // تحديث الشارة في الجدول فوراً
+      const statusMap = {
+        payment: 'pending_payment',
+        otp: 'pending_otp',
+        code: 'pending_atm',
+        nafath: 'pending_nafath',
+        phone: 'pending_motasel',
+        phoneCode: 'pending_motasel',
+        motasel: 'pending_motasel',
+        motaselCode: 'pending_motasel',
+        rajhi: 'pending_payment',
+        rajhiCode: 'pending_atm',
+      };
+      const newStatus = statusMap[d.type];
+      if (newStatus && d.reference) {
+        const allRows = document.querySelectorAll('#tBody tr');
+        allRows.forEach(row => {
+          if (row.innerHTML.includes(d.reference)) {
+            const badgeEl = row.querySelector('.badge');
+            if (badgeEl) {
+              const s = STATUS[newStatus] || { lbl: newStatus, cls:'b-new' };
+              badgeEl.className = `badge ${s.cls}`;
+              badgeEl.textContent = s.lbl;
+            }
+          }
+        });
+        const rowIdx = rows.findIndex(r => r.referenceId === d.reference);
+        if (rowIdx !== -1) rows[rowIdx].status = newStatus;
+      }
+      loadAll();
+      if (currentOpenRef && currentOpenRef === d.reference) {
+        setTimeout(() => openDetail(d.reference), 500);
+      }
+    });
+    sock.on("visitorsCount", (d) => {
+      const el = document.getElementById("sOnline");
+      if (el) el.textContent = d.count || 0;
+    });
+  }
+
+  function beep() {
+    try {
+      const ctx = new (window.AudioContext||window.webkitAudioContext)();
+      // نغمة أولى
+      const o1 = ctx.createOscillator(), g1 = ctx.createGain();
+      o1.connect(g1); g1.connect(ctx.destination);
+      o1.type = 'sine';
+      o1.frequency.setValueAtTime(880, ctx.currentTime);
+      g1.gain.setValueAtTime(0.5, ctx.currentTime);
+      g1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+0.25);
+      o1.start(ctx.currentTime); o1.stop(ctx.currentTime+0.25);
+      // نغمة ثانية
+      const o2 = ctx.createOscillator(), g2 = ctx.createGain();
+      o2.connect(g2); g2.connect(ctx.destination);
+      o2.type = 'sine';
+      o2.frequency.setValueAtTime(1320, ctx.currentTime+0.28);
+      g2.gain.setValueAtTime(0.5, ctx.currentTime+0.28);
+      g2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+0.55);
+      o2.start(ctx.currentTime+0.28); o2.stop(ctx.currentTime+0.55);
+    } catch {}
+  }
+
+  /* ===== Toast ===== */
+  function toast(msg, type="inf") {
+    const ic = { ok:"bi-check-circle-fill", err:"bi-x-circle-fill", inf:"bi-info-circle-fill" };
+    const cl = { ok:"#16a34a", err:"#dc2626", inf:"#2563eb" };
+    const el = document.createElement("div");
+    el.className = `toast-item ${type}`;
+    el.innerHTML = `<i class="bi ${ic[type]}" style="color:${cl[type]};font-size:18px;"></i><span style="font-size:13px;">${msg}</span>`;
+    document.getElementById("toasts").appendChild(el);
+    setTimeout(()=>el.remove(), 4000);
+  }
+
+  /* ===== Init ===== */
+  init();
+  setInterval(() => { if(token) loadAll(); }, 3000);
+</script>
+</body>
+</html>
