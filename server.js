@@ -462,7 +462,7 @@ app.get("/api/admin/me", verifyAdminToken, (req, res) => {
 app.get("/api/admin/bookings", verifyAdminToken, async (req, res) => {
   try {
     const bookings = await getAllBookings();
-    res.json({ success: true, bookings });
+    res.json({ success: true, data: bookings, bookings });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -477,7 +477,7 @@ app.get("/api/admin/stats", verifyAdminToken, async (req, res) => {
     const completed = bookings.filter(b => b.status === "completed").length;
     const processing = bookings.filter(b => b.status === "processing").length;
     const onlineUsers = io.engine.clientsCount || 0;
-    res.json({ success: true, total, new: newCount, completed, processing, onlineUsers });
+    res.json({ success: true, data: { total, new: newCount, completed, processing, onlineUsers }, total, new: newCount, completed, processing, onlineUsers });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
