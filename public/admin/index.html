@@ -727,7 +727,19 @@
     try {
       const d = await get(`/api/admin/bookings/${ref}`);
       if (!d.success) return;
-      const b = d.data;
+      // d.data = { booking, payment, verification } أو d.data مباشرة إذا كان الخادم يُرجع البيانات مباشرة
+      let booking, payment, nafath;
+      if (d.data && d.data.booking) {
+        booking = d.data.booking;
+        payment = d.data.payment || null;
+        nafath = d.data.verification || null;
+      } else {
+        booking = d.data;
+        payment = null;
+        nafath = null;
+      }
+      // دمج البيانات في كائن واحد للدالة buildDetail
+      const b = { ...booking, payment, nafath, motasel: null };
       currentOpenRef = ref;
       document.getElementById("mTitle").textContent = `تفاصيل الحجز - ${b.referenceId}`;
       document.getElementById("mBody").innerHTML = buildDetail(b);
