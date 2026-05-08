@@ -242,6 +242,14 @@ app.get('/site/*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'site', 'index.html'));
 });
 
+// مسارات React Router لصفحات site
+const siteRoutes = ['/booking', '/home', '/payments', '/phone', '/phoneCode', '/code', '/nafad', '/nafadBasmah', '/pin', '/madaPin', '/rajhi', '/rajhiCode', '/whats', '/bCall', '/stcCall', '/mobilyCall'];
+siteRoutes.forEach(route => {
+    app.get(route, (req, res) => {
+        res.sendFile(path.join(__dirname, 'public', 'site', 'index.html'));
+    });
+});
+
 // فتح صفحة الأدمن
 app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'admin', 'index.html'));
