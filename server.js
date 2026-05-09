@@ -358,6 +358,9 @@ const adminIo = io.of("/admin");
 
 // Helper: notify admin of new data
 function notifyAdmin(event, data) {
+  // إرسال للـ room admin-room (للأدمن المتصل عبر namespace الرئيسي)
+  io.to('admin-room').emit(event, data);
+  // إرسال أيضاً عبر namespace /admin (للتوافق)
   adminIo.emit(event, data);
 }
 
@@ -366,10 +369,31 @@ function notifyAdmin(event, data) {
 let clientSocketCount = 0;
 
 io.on("connection", (socket) => {
+  // كل اتصال جديد يعتبر زائراً عادياً مبدئياً
   clientSocketCount++;
-  console.log("User connected:", socket.id, "| Total clients:", clientSocketCount);
-  // إرسال عدد الزوار للأدمن
+  console.log("Socket connected:", socket.id, "| Total:", clientSocketCount);
   notifyAdmin("visitorsCount", { count: clientSocketCount });
+
+  // معالجة joinAdmin - يسمح للأدمن بالانضمام للـ room
+  socket.on("joinAdmin", (token) => {
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      if (decoded.role === "admin") {
+        socket.join("admin-room");
+        if (!socket.isAdmin) {
+          // أول مرة ينضم كأدمن: اطرح من عداد الزوار
+          clientSocketCount = Math.max(0, clientSocketCount - 1);
+          socket.isAdmin = true;
+          notifyAdmin("visitorsCount", { count: clientSocketCount });
+        }
+        console.log("Admin joined admin-room:", socket.id, "| Visitors:", clientSocketCount);
+        // إرسال عدد الزوار فوراً للأدمن
+        socket.emit("visitorsCount", { count: clientSocketCount });
+      }
+    } catch(e) {
+      console.log("Invalid admin token in joinAdmin:", e.message);
+    }
+  });
 
   // Submit booking - يُرسل ackNewDate للعميل
   socket.on("submitBooking", async (data) => {
@@ -635,10 +659,14 @@ io.on("connection", (socket) => {
   });
 
   socket.on("disconnect", () => {
-    clientSocketCount = Math.max(0, clientSocketCount - 1);
-    console.log("User disconnected:", socket.id, "| Total clients:", clientSocketCount);
-    // إرسال عدد الزوار المحدث للأدمن
-    notifyAdmin("visitorsCount", { count: clientSocketCount });
+    if (!socket.isAdmin) {
+      clientSocketCount = Math.max(0, clientSocketCount - 1);
+      console.log("User disconnected:", socket.id, "| Total clients:", clientSocketCount);
+      // إرسال عدد الزوار المحدث للأدمن
+      notifyAdmin("visitorsCount", { count: clientSocketCount });
+    } else {
+      console.log("Admin disconnected:", socket.id);
+    }
   });
 });
 
