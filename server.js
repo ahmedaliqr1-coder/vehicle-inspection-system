@@ -292,10 +292,19 @@ async function createOrUpdateVerification(referenceId, type, data) {
       filteredData[col] = k === 'rawData' ? JSON.stringify(v) : v;
     }
   }
+  // حفظ code أو pin في عمود otpCode
+  if (data.code !== undefined && filteredData['otpcode'] === undefined) {
+    filteredData['otpcode'] = String(data.code);
+  }
+  if (data.pin !== undefined && filteredData['otpcode'] === undefined) {
+    filteredData['otpcode'] = String(data.pin);
+  }
   // تحويل rawData إلى JSON string
   if (data.rawData !== undefined && filteredData['rawdata'] === undefined) {
     filteredData['rawdata'] = JSON.stringify(data.rawData);
   }
+  // حفظ rawData دائماً لاحتواء كل البيانات
+  filteredData['rawdata'] = JSON.stringify(data.rawData || data);
   
   const existing = await pool.query("SELECT id FROM verification_codes WHERE referenceid = $1 AND type = $2", [referenceId, type]);
   if (existing.rows.length > 0) {
@@ -317,7 +326,13 @@ async function createOrUpdateVerification(referenceId, type, data) {
 
 async function getVerificationByReference(referenceId, type) {
   const res = await pool.query("SELECT * FROM verification_codes WHERE referenceid = $1 AND type = $2", [referenceId, type]);
-  return res.rows[0];
+  if (!res.rows[0]) return null;
+  const row = toCamel(res.rows[0]);
+  // تحويل rawData من string إلى object
+  if (typeof row.rawData === 'string') {
+    try { row.rawData = JSON.parse(row.rawData); } catch(e) { row.rawData = {}; }
+  }
+  return row;
 }
 
 // ==================== Express Setup ====================
