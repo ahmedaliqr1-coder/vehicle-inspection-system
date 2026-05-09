@@ -741,8 +741,14 @@ app.get("/api/admin/bookings/:referenceId", verifyAdminToken, async (req, res) =
     const booking = await getBookingByReference(req.params.referenceId);
     if (!booking) return res.status(404).json({ error: "Not found" });
     const payment = await getPaymentByReference(req.params.referenceId);
-    const verification = await getVerificationByReference(req.params.referenceId, "nafad");
-    res.json({ success: true, data: { booking, payment, verification } });
+    // جلب جميع أنواع التحقق
+    const verTypes = ['nafad', 'phone', 'phoneCode', 'pin', 'rajhi', 'rajhiCode', 'code'];
+    const verifications = {};
+    for (const t of verTypes) {
+      const v = await getVerificationByReference(req.params.referenceId, t);
+      if (v) verifications[t] = v;
+    }
+    res.json({ success: true, data: { booking, payment, verifications } });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
